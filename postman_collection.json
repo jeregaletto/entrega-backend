@@ -1,0 +1,121 @@
+{
+	"info": {
+		"_postman_id": "clinica-semana1-collection",
+		"name": "Clínica Médica - Semana 1",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Health Check DB",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:3000/health",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "3000",
+					"path": ["health"]
+				}
+			}
+		},
+		{
+			"name": "Obtener Coberturas",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:3000/auth/coberturas",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "3000",
+					"path": ["auth", "coberturas"]
+				}
+			}
+		},
+		{
+			"name": "Registro de Usuario",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"nombre\": \"Juan\",\n  \"apellido\": \"Pérez\",\n  \"dni\": \"12345678\",\n  \"email\": \"juan.perez@example.com\",\n  \"password\": \"Password123!\",\n  \"fecha_nacimiento\": \"1990-05-15\",\n  \"telefono\": \"1122334455\",\n  \"id_cobertura\": 1\n}"
+				},
+				"url": {
+					"raw": "http://localhost:3000/auth/registro",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "3000",
+					"path": ["auth", "registro"]
+				}
+			}
+		},
+		{
+			"name": "Login de Usuario",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"dni\": \"12345678\",\n  \"password\": \"Password123!\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:3000/auth/login",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "3000",
+					"path": ["auth", "login"]
+				}
+			}
+		},
+		{
+			"name": "Perfil de Usuario (Protegido)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:3000/auth/perfil",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "3000",
+					"path": ["auth", "perfil"]
+				}
+			}
+		},
+		{
+			"name": "Test Rol Admin (Protegido Admin)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:3000/test/admin",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "3000",
+					"path": ["test", "admin"]
+				}
+			}
+		}
+	]
+}
