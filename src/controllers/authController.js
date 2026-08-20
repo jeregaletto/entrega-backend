@@ -2,12 +2,14 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 const { sendResponse } = require('../utils/responseHandler');
+const coberturaService = require('../services/coberturaService');
 
 // GET /auth/coberturas
 const getCoberturas = async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT id, nombre FROM cobertura');
-    return sendResponse(res, 200, 'Lista de coberturas obtenida con éxito', rows);
+    // Reutiliza el servicio de solo lectura compartido con el CRUD de coberturas
+    const coberturas = await coberturaService.listarCoberturas();
+    return sendResponse(res, 200, 'Lista de coberturas obtenida con éxito', coberturas);
   } catch (error) {
     console.error('Error en getCoberturas:', error);
     return sendResponse(res, 500, 'Error al obtener las coberturas de la base de datos', null);

@@ -1,7 +1,7 @@
 {
   "name": "entrega-backend",
   "version": "1.0.0",
-  "description": "Trabajo Práctico Backend Semana 1 - Sistema Clínica Médica",
+  "description": "Trabajo Práctico Backend Semana 2 - Sistema Clínica Médica",
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
