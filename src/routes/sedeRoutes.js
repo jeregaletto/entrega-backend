@@ -12,4 +12,4 @@ router.post('/', sedeController.crearSede);
 router.put('/:id', sedeController.actualizarSede);
 router.delete('/:id', sedeController.eliminarSede);
 
-module.exports = router;
+module.exports = router; 
