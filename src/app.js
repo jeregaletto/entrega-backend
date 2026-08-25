@@ -1,14 +1,27 @@
+// src/app.js
 const express = require('express');
 require('dotenv').config();
 const pool = require('./config/db');
 const { sendResponse } = require('./utils/responseHandler');
+
+// Importar rutas de Semana 1
 const authRoutes = require('./routes/authRoutes');
 const testRoutes = require('./routes/testRoutes');
+
+// Importar rutas de Semana 2
+const sedeRoutes = require('./routes/sedeRoutes');
+const especialidadRoutes = require('./routes/especialidadRoutes');
+const coberturaRoutes = require('./routes/coberturaRoutes');
+const agendaRoutes = require('./routes/agendaRoutes');
+
+// Importar rutas de Semana 3
+const turnoRoutes = require('./routes/turnoRoutes');
+const historialClinicoRoutes = require('./routes/historialClinicoRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware para parsear JSON en las peticiones
+// Middleware para parsear JSON
 app.use(express.json());
 
 // Endpoint GET /health
@@ -27,9 +40,15 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// Rutas de la aplicación
+// Montar Rutas de la Aplicación
 app.use('/auth', authRoutes);
 app.use('/test', testRoutes);
+app.use('/sedes', sedeRoutes);
+app.use('/especialidades', especialidadRoutes);
+app.use('/coberturas', coberturaRoutes);
+app.use('/agenda', agendaRoutes);
+app.use('/turnos', turnoRoutes);
+app.use('/historial-clinico', historialClinicoRoutes);
 
 // Manejador de rutas no encontradas (404)
 app.use((req, res) => {

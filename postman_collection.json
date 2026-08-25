@@ -1,121 +1,921 @@
 {
 	"info": {
-		"_postman_id": "clinica-semana1-collection",
-		"name": "Clínica Médica - Semana 1",
+		"_postman_id": "clinica-semana3-collection",
+		"name": "Clínica Médica - Semana 1, Semana 2 y Semana 3",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "token_admin",
+			"value": "TU_TOKEN_JWT_ADMIN",
+			"type": "string"
+		},
+		{
+			"key": "token_medico",
+			"value": "TU_TOKEN_JWT_MEDICO",
+			"type": "string"
+		},
+		{
+			"key": "token_paciente",
+			"value": "TU_TOKEN_JWT_PACIENTE",
+			"type": "string"
+		},
+		{
+			"key": "token_operador",
+			"value": "TU_TOKEN_JWT_OPERADOR",
+			"type": "string"
+		}
+	],
 	"item": [
 		{
-			"name": "Health Check DB",
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "http://localhost:3000/health",
-					"protocol": "http",
-					"host": ["localhost"],
-					"port": "3000",
-					"path": ["health"]
-				}
-			}
-		},
-		{
-			"name": "Obtener Coberturas",
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "http://localhost:3000/auth/coberturas",
-					"protocol": "http",
-					"host": ["localhost"],
-					"port": "3000",
-					"path": ["auth", "coberturas"]
-				}
-			}
-		},
-		{
-			"name": "Registro de Usuario",
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
+			"name": "🔑 Setup Tokens (Login rápido)",
+			"item": [
+				{
+					"name": "Login Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const response = pm.response.json();",
+									"if (response.data && response.data.token) {",
+									"    pm.collectionVariables.set(\"token_admin\", response.data.token);",
+									"    console.log(\"token_admin actualizado \u2705\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"dni\": \"18222333\",\n  \"password\": \"Password123!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "login"]
+						}
 					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"nombre\": \"Juan\",\n  \"apellido\": \"Pérez\",\n  \"dni\": \"12345678\",\n  \"email\": \"juan.perez@example.com\",\n  \"password\": \"Password123!\",\n  \"fecha_nacimiento\": \"1990-05-15\",\n  \"telefono\": \"1122334455\",\n  \"id_cobertura\": 1\n}"
 				},
-				"url": {
-					"raw": "http://localhost:3000/auth/registro",
-					"protocol": "http",
-					"host": ["localhost"],
-					"port": "3000",
-					"path": ["auth", "registro"]
-				}
-			}
-		},
-		{
-			"name": "Login de Usuario",
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
+				{
+					"name": "Login Medico",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const response = pm.response.json();",
+									"if (response.data && response.data.token) {",
+									"    pm.collectionVariables.set(\"token_medico\", response.data.token);",
+									"    console.log(\"token_medico actualizado \u2705\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"dni\": \"20111222\",\n  \"password\": \"Password123!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "login"]
+						}
 					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"dni\": \"12345678\",\n  \"password\": \"Password123!\"\n}"
 				},
-				"url": {
-					"raw": "http://localhost:3000/auth/login",
-					"protocol": "http",
-					"host": ["localhost"],
-					"port": "3000",
-					"path": ["auth", "login"]
+				{
+					"name": "Login Paciente",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const response = pm.response.json();",
+									"if (response.data && response.data.token) {",
+									"    pm.collectionVariables.set(\"token_paciente\", response.data.token);",
+									"    console.log(\"token_paciente actualizado \u2705\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"dni\": \"36000960\",\n  \"password\": \"Password123!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "Login Operador",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const response = pm.response.json();",
+									"if (response.data && response.data.token) {",
+									"    pm.collectionVariables.set(\"token_operador\", response.data.token);",
+									"    console.log(\"token_operador actualizado \u2705\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"dni\": \"15200548\",\n  \"password\": \"Password123!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "login"]
+						}
+					}
 				}
-			}
+			]
 		},
 		{
-			"name": "Perfil de Usuario (Protegido)",
-			"request": {
-				"method": "GET",
-				"header": [
-					{
-						"key": "Authorization",
-						"value": "Bearer {{token}}"
+			"name": "Auth & Health (Semana 1)",
+			"item": [
+				{
+					"name": "Health Check DB",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": ["{{baseUrl}}"],
+							"path": ["health"]
+						}
 					}
-				],
-				"url": {
-					"raw": "http://localhost:3000/auth/perfil",
-					"protocol": "http",
-					"host": ["localhost"],
-					"port": "3000",
-					"path": ["auth", "perfil"]
+				},
+				{
+					"name": "Obtener Coberturas (Auth)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/auth/coberturas",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "coberturas"]
+						}
+					}
+				},
+				{
+					"name": "Registro de Usuario",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombre\": \"Juan\",\n  \"apellido\": \"Pérez\",\n  \"dni\": \"12345678\",\n  \"email\": \"juan.perez@example.com\",\n  \"password\": \"Password123!\",\n  \"fecha_nacimiento\": \"1990-05-15\",\n  \"telefono\": \"1122334455\",\n  \"id_cobertura\": 1\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/registro",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "registro"]
+						}
+					}
+				},
+				{
+					"name": "Login de Usuario",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"dni\": \"12345678\",\n  \"password\": \"Password123!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "Perfil de Usuario (Protegido)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_paciente}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/auth/perfil",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "perfil"]
+						}
+					}
+				},
+				{
+					"name": "Test Rol Admin",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_admin}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/test/admin",
+							"host": ["{{baseUrl}}"],
+							"path": ["test", "admin"]
+						}
+					}
 				}
-			}
+			]
 		},
 		{
-			"name": "Test Rol Admin (Protegido Admin)",
-			"request": {
-				"method": "GET",
-				"header": [
-					{
-						"key": "Authorization",
-						"value": "Bearer {{token}}"
+			"name": "Sedes (Solo Admin)",
+			"item": [
+				{
+					"name": "Listar Sedes",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_admin}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/sedes",
+							"host": ["{{baseUrl}}"],
+							"path": ["sedes"]
+						}
 					}
-				],
-				"url": {
-					"raw": "http://localhost:3000/test/admin",
-					"protocol": "http",
-					"host": ["localhost"],
-					"port": "3000",
-					"path": ["test", "admin"]
+				},
+				{
+					"name": "Obtener Sede por ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_admin}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/sedes/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["sedes", "1"]
+						}
+					}
+				},
+				{
+					"name": "Crear Sede",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_admin}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombre\": \"Sede Central\",\n  \"direccion\": \"Av. Corrientes 1234\",\n  \"telefono\": \"011-4567-8900\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/sedes",
+							"host": ["{{baseUrl}}"],
+							"path": ["sedes"]
+						}
+					}
+				},
+				{
+					"name": "Actualizar Sede",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_admin}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombre\": \"Sede Central Editada\",\n  \"direccion\": \"Av. Corrientes 1234 Piso 2\",\n  \"telefono\": \"011-4567-8999\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/sedes/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["sedes", "1"]
+						}
+					}
+				},
+				{
+					"name": "Eliminar Sede",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_admin}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/sedes/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["sedes", "1"]
+						}
+					}
 				}
-			}
+			]
+		},
+		{
+			"name": "Especialidades (Solo Admin)",
+			"item": [
+				{
+					"name": "Listar Especialidades",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_admin}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/especialidades",
+							"host": ["{{baseUrl}}"],
+							"path": ["especialidades"]
+						}
+					}
+				},
+				{
+					"name": "Obtener Especialidad por ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_admin}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/especialidades/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["especialidades", "1"]
+						}
+					}
+				},
+				{
+					"name": "Crear Especialidad",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_admin}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"descripcion\": \"Cardiología\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/especialidades",
+							"host": ["{{baseUrl}}"],
+							"path": ["especialidades"]
+						}
+					}
+				},
+				{
+					"name": "Actualizar Especialidad",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_admin}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"descripcion\": \"Cardiología Infantil\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/especialidades/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["especialidades", "1"]
+						}
+					}
+				},
+				{
+					"name": "Eliminar Especialidad",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_admin}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/especialidades/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["especialidades", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Coberturas",
+			"item": [
+				{
+					"name": "Listar Coberturas (Público)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/coberturas",
+							"host": ["{{baseUrl}}"],
+							"path": ["coberturas"]
+						}
+					}
+				},
+				{
+					"name": "Obtener Cobertura por ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/coberturas/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["coberturas", "1"]
+						}
+					}
+				},
+				{
+					"name": "Crear Cobertura (Solo Admin)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_admin}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombre\": \"OSDE 310\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/coberturas",
+							"host": ["{{baseUrl}}"],
+							"path": ["coberturas"]
+						}
+					}
+				},
+				{
+					"name": "Actualizar Cobertura (Solo Admin)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_admin}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombre\": \"OSDE 410\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/coberturas/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["coberturas", "1"]
+						}
+					}
+				},
+				{
+					"name": "Eliminar Cobertura (Solo Admin)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_admin}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/coberturas/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["coberturas", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Agenda Médica",
+			"item": [
+				{
+					"name": "Listar Agenda (con filtros opcionales)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_admin}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/agenda?medico=2&sede=1&fecha=2026-09-01",
+							"host": ["{{baseUrl}}"],
+							"path": ["agenda"],
+							"query": [
+								{
+									"key": "medico",
+									"value": "2"
+								},
+								{
+									"key": "sede",
+									"value": "1"
+								},
+								{
+									"key": "fecha",
+									"value": "2026-09-01"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Obtener Franja de Agenda por ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_admin}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/agenda/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["agenda", "1"]
+						}
+					}
+				},
+				{
+					"name": "Crear Franja de Agenda",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_admin}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"hora_entrada\": \"08:00\",\n  \"hora_salida\": \"12:00\",\n  \"fecha\": \"2026-09-01\",\n  \"id_medico\": 2,\n  \"id_especialidad\": 1,\n  \"id_sede\": 1\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/agenda",
+							"host": ["{{baseUrl}}"],
+							"path": ["agenda"]
+						}
+					}
+				},
+				{
+					"name": "Actualizar Franja de Agenda",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_admin}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"hora_entrada\": \"09:00\",\n  \"hora_salida\": \"13:00\",\n  \"fecha\": \"2026-09-01\",\n  \"id_medico\": 2,\n  \"id_especialidad\": 1,\n  \"id_sede\": 1\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/agenda/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["agenda", "1"]
+						}
+					}
+				},
+				{
+					"name": "Eliminar Franja de Agenda",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_admin}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/agenda/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["agenda", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Turnos",
+			"item": [
+				{
+					"name": "Alta de Turno - Paciente (Exitoso)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_paciente}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"id_agenda\": 2,\n  \"hora\": \"16:00\",\n  \"nota\": \"Control clínico anual\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/turnos",
+							"host": ["{{baseUrl}}"],
+							"path": ["turnos"]
+						}
+					}
+				},
+				{
+					"name": "Alta de Turno - Operador (Exitoso)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_operador}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"id_agenda\": 2,\n  \"id_paciente\": 2,\n  \"hora\": \"17:00\",\n  \"nota\": \"Turno solicitado telefónicamente\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/turnos",
+							"host": ["{{baseUrl}}"],
+							"path": ["turnos"]
+						}
+					}
+				},
+				{
+					"name": "Alta de Turno - Rechazado por Horario no Disponible (400)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_paciente}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"id_agenda\": 2,\n  \"hora\": \"22:00\",\n  \"nota\": \"Solicitud fuera del horario de atención médica\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/turnos",
+							"host": ["{{baseUrl}}"],
+							"path": ["turnos"]
+						}
+					}
+				},
+				{
+					"name": "Alta de Turno - Rechazado por Superposición (400)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_paciente}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"id_agenda\": 2,\n  \"hora\": \"16:00\",\n  \"nota\": \"Intento de reserva en franja ya ocupada\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/turnos",
+							"host": ["{{baseUrl}}"],
+							"path": ["turnos"]
+						}
+					}
+				},
+				{
+					"name": "Cancelar Turno (Exitoso)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_operador}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/turnos/3/cancelar",
+							"host": ["{{baseUrl}}"],
+							"path": ["turnos", "3", "cancelar"]
+						}
+					}
+				},
+				{
+					"name": "Atender Turno - Solo Médico (Exitoso)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_medico}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/turnos/3/atender",
+							"host": ["{{baseUrl}}"],
+							"path": ["turnos", "3", "atender"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Historial Clínico",
+			"item": [
+				{
+					"name": "Cargar Historial Clínico - Médico (Exitoso)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_medico}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"id_turno\": 3,\n  \"diagnostico\": \"Hipertensión arterial estadio 1\",\n  \"tratamiento\": \"Enalapril 10mg cada 12hs y reducción de sodio en la dieta\",\n  \"observaciones\": \"Control en 30 días con mapa de presión arterial\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/historial-clinico",
+							"host": ["{{baseUrl}}"],
+							"path": ["historial-clinico"]
+						}
+					}
+				},
+				{
+					"name": "Consultar Historial - Paciente Propio (Exitoso)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_paciente}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/historial-clinico/paciente/2",
+							"host": ["{{baseUrl}}"],
+							"path": ["historial-clinico", "paciente", "2"]
+						}
+					}
+				},
+				{
+					"name": "Consultar Historial de Paciente - Médico (Exitoso)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_medico}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/historial-clinico/paciente/2",
+							"host": ["{{baseUrl}}"],
+							"path": ["historial-clinico", "paciente", "2"]
+						}
+					}
+				}
+			]
 		}
 	]
 }
