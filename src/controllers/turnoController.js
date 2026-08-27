@@ -289,8 +289,186 @@ const atenderTurno = async (req, res) => {
   }
 };
 
+/**
+ * Valida que una fecha tenga formato 'YYYY-MM-DD' y exista en el calendario.
+ */
+const esFechaValida = (valor) => {
+  if (typeof valor !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(valor)) return false;
+  const [anio, mes, dia] = valor.split('-').map(Number);
+  const fecha = new Date(Date.UTC(anio, mes - 1, dia));
+  return fecha.getUTCFullYear() === anio && fecha.getUTCMonth() === mes - 1 && fecha.getUTCDate() === dia;
+};
+
+/**
+ * Consulta base de turnos con los datos de agenda, paciente, médico,
+ * especialidad, sede y cobertura ya resueltos.
+ */
+const SELECT_TURNOS = `
+  SELECT t.id,
+         DATE_FORMAT(t.fecha, '%Y-%m-%d') AS fecha,
+         TIME_FORMAT(t.hora, '%H:%i') AS hora,
+         t.estado,
+         t.nota,
+         t.id_agenda,
+         t.id_paciente,
+         CONCAT(u_pac.apellido, ', ', u_pac.nombre) AS paciente,
+         t.id_cobertura,
+         c.nombre AS cobertura,
+         a.id_medico,
+         CONCAT(u_med.apellido, ', ', u_med.nombre) AS medico,
+         a.id_especialidad,
+         e.descripcion AS especialidad,
+         a.id_sede,
+         s.nombre AS sede
+  FROM turno t
+  INNER JOIN agenda a ON t.id_agenda = a.id
+  INNER JOIN usuario u_pac ON t.id_paciente = u_pac.id
+  INNER JOIN usuario u_med ON a.id_medico = u_med.id
+  INNER JOIN especialidad e ON a.id_especialidad = e.id
+  INNER JOIN sede s ON a.id_sede = s.id
+  LEFT JOIN cobertura c ON t.id_cobertura = c.id
+`;
+
+const ESTADOS_VALIDOS = ['confirmado', 'cancelado', 'atendido'];
+
+// GET /turnos/mis-turnos - Turnos del paciente autenticado, del más próximo al menos próximo
+const getMisTurnos = async (req, res) => {
+  const usuario = req.user;
+  const { estado } = req.query;
+
+  if (estado !== undefined && !ESTADOS_VALIDOS.includes(estado)) {
+    return sendResponse(res, 400, `El filtro estado debe ser uno de: ${ESTADOS_VALIDOS.join(', ')}.`, null);
+  }
+
+  try {
+    const filtros = ['t.id_paciente = ?'];
+    const params = [usuario.id];
+
+    if (estado !== undefined) {
+      filtros.push('t.estado = ?');
+      params.push(estado);
+    }
+
+    // Orden ascendente por fecha y hora: el turno más próximo aparece primero
+    const [turnos] = await pool.query(
+      `${SELECT_TURNOS} WHERE ${filtros.join(' AND ')} ORDER BY t.fecha ASC, t.hora ASC`,
+      params
+    );
+
+    return sendResponse(res, 200, 'Turnos del paciente obtenidos con éxito', turnos);
+  } catch (error) {
+    console.error('Error en getMisTurnos:', error);
+    return sendResponse(res, 500, 'Error interno al obtener los turnos del paciente', null);
+  }
+};
+
+// GET /turnos/programados?fecha=YYYY-MM-DD&id_medico= - Turnos de un médico para una fecha
+const getTurnosProgramados = async (req, res) => {
+  const usuario = req.user;
+  const { fecha, id_medico } = req.query;
+
+  if (!fecha) {
+    return sendResponse(res, 400, 'El parámetro fecha es obligatorio.', null);
+  }
+
+  if (!esFechaValida(fecha)) {
+    return sendResponse(res, 400, 'El parámetro fecha debe tener el formato YYYY-MM-DD.', null);
+  }
+
+  if (id_medico !== undefined && !(Number.isInteger(Number(id_medico)) && Number(id_medico) > 0)) {
+    return sendResponse(res, 400, 'El filtro id_medico debe ser un número entero positivo.', null);
+  }
+
+  try {
+    const filtros = ['t.fecha = ?'];
+    const params = [fecha];
+
+    if (usuario.rol === 'medico') {
+      // El médico solo accede a sus propios turnos
+      if (id_medico !== undefined && Number(id_medico) !== Number(usuario.id)) {
+        return sendResponse(res, 403, 'Acceso denegado. Solo puede consultar sus propios turnos programados.', null);
+      }
+      filtros.push('a.id_medico = ?');
+      params.push(usuario.id);
+    } else if (usuario.rol === 'operador') {
+      // El operador solo accede a los turnos de su propia sede
+      filtros.push('a.id_sede = ?');
+      params.push(usuario.id_sede);
+      if (id_medico !== undefined) {
+        filtros.push('a.id_medico = ?');
+        params.push(Number(id_medico));
+      }
+    } else {
+      // El administrador puede consultar cualquier médico
+      if (id_medico !== undefined) {
+        filtros.push('a.id_medico = ?');
+        params.push(Number(id_medico));
+      }
+    }
+
+    const [turnos] = await pool.query(
+      `${SELECT_TURNOS} WHERE ${filtros.join(' AND ')} ORDER BY t.hora ASC, s.nombre ASC`,
+      params
+    );
+
+    return sendResponse(res, 200, 'Turnos programados obtenidos con éxito', turnos);
+  } catch (error) {
+    console.error('Error en getTurnosProgramados:', error);
+    return sendResponse(res, 500, 'Error interno al obtener los turnos programados', null);
+  }
+};
+
+// GET /turnos/sede?fecha=YYYY-MM-DD&id_sede= - Turnos de una sede para una fecha (uso del operador)
+const getTurnosPorSede = async (req, res) => {
+  const usuario = req.user;
+  const { fecha, id_sede } = req.query;
+
+  if (!fecha) {
+    return sendResponse(res, 400, 'El parámetro fecha es obligatorio.', null);
+  }
+
+  if (!esFechaValida(fecha)) {
+    return sendResponse(res, 400, 'El parámetro fecha debe tener el formato YYYY-MM-DD.', null);
+  }
+
+  if (id_sede !== undefined && !(Number.isInteger(Number(id_sede)) && Number(id_sede) > 0)) {
+    return sendResponse(res, 400, 'El filtro id_sede debe ser un número entero positivo.', null);
+  }
+
+  try {
+    const filtros = ['t.fecha = ?'];
+    const params = [fecha];
+
+    if (usuario.rol === 'operador') {
+      // El operador solo accede a los turnos de su propia sede
+      if (id_sede !== undefined && Number(id_sede) !== Number(usuario.id_sede)) {
+        return sendResponse(res, 403, 'Acceso denegado. Solo puede consultar los turnos de su sede asignada.', null);
+      }
+      filtros.push('a.id_sede = ?');
+      params.push(usuario.id_sede);
+    } else if (id_sede !== undefined) {
+      // El administrador puede consultar cualquier sede
+      filtros.push('a.id_sede = ?');
+      params.push(Number(id_sede));
+    }
+
+    const [turnos] = await pool.query(
+      `${SELECT_TURNOS} WHERE ${filtros.join(' AND ')} ORDER BY t.hora ASC, e.descripcion ASC`,
+      params
+    );
+
+    return sendResponse(res, 200, 'Turnos de la sede obtenidos con éxito', turnos);
+  } catch (error) {
+    console.error('Error en getTurnosPorSede:', error);
+    return sendResponse(res, 500, 'Error interno al obtener los turnos de la sede', null);
+  }
+};
+
 module.exports = {
   createTurno,
   cancelarTurno,
-  atenderTurno
+  atenderTurno,
+  getMisTurnos,
+  getTurnosProgramados,
+  getTurnosPorSede
 };
