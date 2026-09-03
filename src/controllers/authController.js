@@ -1,7 +1,9 @@
+// src/controllers/authController.js
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 const { sendResponse } = require('../utils/responseHandler');
+const { registrarAuditoria } = require('../utils/auditoriaHelper');
 
 // GET /auth/coberturas
 const getCoberturas = async (req, res) => {
@@ -57,8 +59,20 @@ const registro = async (req, res) => {
       [nombre, apellido, dni, email, hashedPassword, fecha_nacimiento, telefono || null, rol, id_sede, id_cobertura || null]
     );
 
+    const nuevoUsuarioId = result.insertId;
+
+    // Registrar log de auditoría (ALTA)
+    // En el registro público de pacientes, el actor es el propio usuario recién creado
+    await registrarAuditoria(
+      nuevoUsuarioId,
+      'ALTA',
+      'usuario',
+      nuevoUsuarioId,
+      `Alta de usuario: ${nombre} ${apellido} (DNI: ${dni})`
+    );
+
     return sendResponse(res, 201, 'Usuario registrado exitosamente', {
-      id: result.insertId,
+      id: nuevoUsuarioId,
       nombre,
       apellido,
       dni,

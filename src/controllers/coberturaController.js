@@ -1,6 +1,7 @@
 // src/controllers/coberturaController.js
 const pool = require('../config/db');
 const { sendResponse } = require('../utils/responseHandler');
+const { registrarAuditoria } = require('../utils/auditoriaHelper');
 
 // GET /coberturas - Listar todas las coberturas (Público / Accesible sin rol admin)
 const getAllCoberturas = async (req, res) => {
@@ -42,6 +43,15 @@ const createCobertura = async (req, res) => {
       [nombre]
     );
 
+    // Registrar log de auditoría (ALTA)
+    await registrarAuditoria(
+      req.user.id,
+      'ALTA',
+      'cobertura',
+      result.insertId,
+      `Alta de cobertura: ${nombre}`
+    );
+
     return sendResponse(res, 201, 'Cobertura creada exitosamente', {
       id: result.insertId,
       nombre
@@ -68,6 +78,15 @@ const updateCobertura = async (req, res) => {
     }
 
     await pool.query('UPDATE cobertura SET nombre = ? WHERE id = ?', [nombre, id]);
+
+    // Registrar log de auditoría (MODIFICACION)
+    await registrarAuditoria(
+      req.user.id,
+      'MODIFICACION',
+      'cobertura',
+      Number(id),
+      `Modificación de cobertura id=${id} (${nombre})`
+    );
 
     return sendResponse(res, 200, 'Cobertura actualizada exitosamente', {
       id: Number(id),
@@ -102,6 +121,16 @@ const deleteCobertura = async (req, res) => {
     }
 
     await pool.query('DELETE FROM cobertura WHERE id = ?', [id]);
+
+    // Registrar log de auditoría (BAJA)
+    await registrarAuditoria(
+      req.user.id,
+      'BAJA',
+      'cobertura',
+      Number(id),
+      `Baja de cobertura id=${id}`
+    );
+
     return sendResponse(res, 200, 'Cobertura eliminada exitosamente', { id: Number(id) });
   } catch (error) {
     console.error('Error en deleteCobertura:', error);

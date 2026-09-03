@@ -19,6 +19,10 @@ const turnoRoutes = require('./routes/turnoRoutes');
 const historialClinicoRoutes = require('./routes/historialClinicoRoutes');
 const notificacionRoutes = require('./routes/notificacionRoutes');
 
+// Importar rutas de Semana 4
+const auditoriaRoutes = require('./routes/auditoriaRoutes');
+const reporteRoutes = require('./routes/reporteRoutes');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -51,6 +55,8 @@ app.use('/agenda', agendaRoutes);
 app.use('/turnos', turnoRoutes);
 app.use('/historial-clinico', historialClinicoRoutes);
 app.use('/notificaciones', notificacionRoutes);
+app.use('/auditoria', auditoriaRoutes);
+app.use('/reportes', reporteRoutes);
 
 // Manejador de rutas no encontradas (404)
 app.use((req, res) => {
