@@ -1,8 +1,9 @@
 {
   "info": {
     "_postman_id": "clinica-semana3-collection",
-    "name": "Clínica Médica - Semana 1, Semana 2 y Semana 3",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    "name": "Clínica Médica - API completa (Semanas 1 a 4)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Colección de pruebas de la API. La documentación de referencia de cada endpoint (método, ruta, parámetros, body, respuestas y rol) está en Swagger: http://localhost:3000/api-docs\n\nEjecutar primero la carpeta '🔑 Setup Tokens' para cargar los tokens de cada rol."
   },
   "variable": [
     {
@@ -2080,6 +2081,916 @@
               }
             }
           ]
+        }
+      ]
+    },
+    {
+      "name": "Auditoría (Semana 4)",
+      "description": "Los logs se escriben solos vía middleware al crear, modificar o borrar usuarios, coberturas, especialidades y sedes.",
+      "item": [
+        {
+          "name": "Consultar Logs de Auditoría",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auditoria",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auditoria"
+              ]
+            },
+            "description": "Sin filtros devuelve todo el historial, del más reciente al más antiguo."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Responde 200\", function () { pm.response.to.have.status(200); });",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Estructura uniforme (code/status/data)\", function () {",
+                  "    pm.expect(r).to.have.property(\"code\");",
+                  "    pm.expect(r).to.have.property(\"status\");",
+                  "    pm.expect(r).to.have.property(\"data\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filtrar por Entidad",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auditoria?entidad=sede",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auditoria"
+              ],
+              "query": [
+                {
+                  "key": "entidad",
+                  "value": "sede"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Responde 200\", function () { pm.response.to.have.status(200); });",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Estructura uniforme (code/status/data)\", function () {",
+                  "    pm.expect(r).to.have.property(\"code\");",
+                  "    pm.expect(r).to.have.property(\"status\");",
+                  "    pm.expect(r).to.have.property(\"data\");",
+                  "});",
+                  "pm.test(\"Todos los registros son de la entidad pedida\", function () {",
+                  "    r.data.forEach(l => pm.expect(l.entidad.toLowerCase()).to.eql(\"sede\"));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filtrar por Usuario",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auditoria?usuario=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auditoria"
+              ],
+              "query": [
+                {
+                  "key": "usuario",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Responde 200\", function () { pm.response.to.have.status(200); });",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Estructura uniforme (code/status/data)\", function () {",
+                  "    pm.expect(r).to.have.property(\"code\");",
+                  "    pm.expect(r).to.have.property(\"status\");",
+                  "    pm.expect(r).to.have.property(\"data\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filtrar por Rango de Fechas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auditoria?fecha_desde=2026-01-01&fecha_hasta=2026-12-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auditoria"
+              ],
+              "query": [
+                {
+                  "key": "fecha_desde",
+                  "value": "2026-01-01"
+                },
+                {
+                  "key": "fecha_hasta",
+                  "value": "2026-12-31"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Responde 200\", function () { pm.response.to.have.status(200); });",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Estructura uniforme (code/status/data)\", function () {",
+                  "    pm.expect(r).to.have.property(\"code\");",
+                  "    pm.expect(r).to.have.property(\"status\");",
+                  "    pm.expect(r).to.have.property(\"data\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rango de Fechas Invertido (400)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auditoria?fecha_desde=2026-12-31&fecha_hasta=2026-01-01",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auditoria"
+              ],
+              "query": [
+                {
+                  "key": "fecha_desde",
+                  "value": "2026-12-31"
+                },
+                {
+                  "key": "fecha_hasta",
+                  "value": "2026-01-01"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Responde 400\", function () { pm.response.to.have.status(400); });",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Estructura uniforme (code/status/data)\", function () {",
+                  "    pm.expect(r).to.have.property(\"code\");",
+                  "    pm.expect(r).to.have.property(\"status\");",
+                  "    pm.expect(r).to.have.property(\"data\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Auditoría como Operador (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_operador}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auditoria",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auditoria"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Responde 403\", function () { pm.response.to.have.status(403); });",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Estructura uniforme (code/status/data)\", function () {",
+                  "    pm.expect(r).to.have.property(\"code\");",
+                  "    pm.expect(r).to.have.property(\"status\");",
+                  "    pm.expect(r).to.have.property(\"data\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Auditoría sin Token (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auditoria",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auditoria"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Responde 401\", function () { pm.response.to.have.status(401); });",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Estructura uniforme (code/status/data)\", function () {",
+                  "    pm.expect(r).to.have.property(\"code\");",
+                  "    pm.expect(r).to.have.property(\"status\");",
+                  "    pm.expect(r).to.have.property(\"data\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "VERIFICAR: crear sede y ver que se audita sola",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sedes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sedes"
+              ]
+            },
+            "description": "Ejecutar esta request y después 'Consultar Logs' — el ALTA aparece sin que el controlador la registre.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Sede Auditada\",\n  \"direccion\": \"Calle Test 100\",\n  \"telefono\": \"1100000000\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Responde 201\", function () { pm.response.to.have.status(201); });",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Estructura uniforme (code/status/data)\", function () {",
+                  "    pm.expect(r).to.have.property(\"code\");",
+                  "    pm.expect(r).to.have.property(\"status\");",
+                  "    pm.expect(r).to.have.property(\"data\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Reportes y Estadísticas (Semana 4)",
+      "description": "Consultas agregadas sobre turno, agenda, especialidad y sede. Todas admiten fecha_desde y fecha_hasta.",
+      "item": [
+        {
+          "name": "Turnos por Especialidad",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reportes/turnos-por-especialidad",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reportes",
+                "turnos-por-especialidad"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Responde 200\", function () { pm.response.to.have.status(200); });",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Estructura uniforme (code/status/data)\", function () {",
+                  "    pm.expect(r).to.have.property(\"code\");",
+                  "    pm.expect(r).to.have.property(\"status\");",
+                  "    pm.expect(r).to.have.property(\"data\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Turnos por Especialidad - Con Rango de Fechas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reportes/turnos-por-especialidad?fecha_desde=2026-01-01&fecha_hasta=2026-12-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reportes",
+                "turnos-por-especialidad"
+              ],
+              "query": [
+                {
+                  "key": "fecha_desde",
+                  "value": "2026-01-01"
+                },
+                {
+                  "key": "fecha_hasta",
+                  "value": "2026-12-31"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Responde 200\", function () { pm.response.to.have.status(200); });",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Estructura uniforme (code/status/data)\", function () {",
+                  "    pm.expect(r).to.have.property(\"code\");",
+                  "    pm.expect(r).to.have.property(\"status\");",
+                  "    pm.expect(r).to.have.property(\"data\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Turnos por Sede",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reportes/turnos-por-sede",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reportes",
+                "turnos-por-sede"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Responde 200\", function () { pm.response.to.have.status(200); });",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Estructura uniforme (code/status/data)\", function () {",
+                  "    pm.expect(r).to.have.property(\"code\");",
+                  "    pm.expect(r).to.have.property(\"status\");",
+                  "    pm.expect(r).to.have.property(\"data\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Turnos por Sede - Con Rango de Fechas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reportes/turnos-por-sede?fecha_desde=2026-01-01&fecha_hasta=2026-12-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reportes",
+                "turnos-por-sede"
+              ],
+              "query": [
+                {
+                  "key": "fecha_desde",
+                  "value": "2026-01-01"
+                },
+                {
+                  "key": "fecha_hasta",
+                  "value": "2026-12-31"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Responde 200\", function () { pm.response.to.have.status(200); });",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Estructura uniforme (code/status/data)\", function () {",
+                  "    pm.expect(r).to.have.property(\"code\");",
+                  "    pm.expect(r).to.have.property(\"status\");",
+                  "    pm.expect(r).to.have.property(\"data\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ranking de Médicos (completo, no solo el primero)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reportes/ranking-medicos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reportes",
+                "ranking-medicos"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Responde 200\", function () { pm.response.to.have.status(200); });",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Estructura uniforme (code/status/data)\", function () {",
+                  "    pm.expect(r).to.have.property(\"code\");",
+                  "    pm.expect(r).to.have.property(\"status\");",
+                  "    pm.expect(r).to.have.property(\"data\");",
+                  "});",
+                  "pm.test(\"Ordenado de mayor a menor\", function () {",
+                  "    const d = r.data;",
+                  "    for (let i = 1; i < d.length; i++) {",
+                  "        pm.expect(d[i-1].cantidad_atendidos).to.be.at.least(d[i].cantidad_atendidos);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ranking de Médicos - Con Rango de Fechas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reportes/ranking-medicos?fecha_desde=2026-01-01&fecha_hasta=2026-12-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reportes",
+                "ranking-medicos"
+              ],
+              "query": [
+                {
+                  "key": "fecha_desde",
+                  "value": "2026-01-01"
+                },
+                {
+                  "key": "fecha_hasta",
+                  "value": "2026-12-31"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Responde 200\", function () { pm.response.to.have.status(200); });",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Estructura uniforme (code/status/data)\", function () {",
+                  "    pm.expect(r).to.have.property(\"code\");",
+                  "    pm.expect(r).to.have.property(\"status\");",
+                  "    pm.expect(r).to.have.property(\"data\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tasa de Cancelación",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reportes/tasa-cancelacion",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reportes",
+                "tasa-cancelacion"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Responde 200\", function () { pm.response.to.have.status(200); });",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Estructura uniforme (code/status/data)\", function () {",
+                  "    pm.expect(r).to.have.property(\"code\");",
+                  "    pm.expect(r).to.have.property(\"status\");",
+                  "    pm.expect(r).to.have.property(\"data\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tasa de Cancelación - Con Rango de Fechas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reportes/tasa-cancelacion?fecha_desde=2026-01-01&fecha_hasta=2026-12-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reportes",
+                "tasa-cancelacion"
+              ],
+              "query": [
+                {
+                  "key": "fecha_desde",
+                  "value": "2026-01-01"
+                },
+                {
+                  "key": "fecha_hasta",
+                  "value": "2026-12-31"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Responde 200\", function () { pm.response.to.have.status(200); });",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Estructura uniforme (code/status/data)\", function () {",
+                  "    pm.expect(r).to.have.property(\"code\");",
+                  "    pm.expect(r).to.have.property(\"status\");",
+                  "    pm.expect(r).to.have.property(\"data\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Fecha Mal Formada (400)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reportes/turnos-por-sede?fecha_desde=01-01-2026",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reportes",
+                "turnos-por-sede"
+              ],
+              "query": [
+                {
+                  "key": "fecha_desde",
+                  "value": "01-01-2026"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Responde 400\", function () { pm.response.to.have.status(400); });",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Estructura uniforme (code/status/data)\", function () {",
+                  "    pm.expect(r).to.have.property(\"code\");",
+                  "    pm.expect(r).to.have.property(\"status\");",
+                  "    pm.expect(r).to.have.property(\"data\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reportes como Médico (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_medico}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reportes/ranking-medicos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reportes",
+                "ranking-medicos"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Responde 403\", function () { pm.response.to.have.status(403); });",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Estructura uniforme (code/status/data)\", function () {",
+                  "    pm.expect(r).to.have.property(\"code\");",
+                  "    pm.expect(r).to.have.property(\"status\");",
+                  "    pm.expect(r).to.have.property(\"data\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reportes como Paciente (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_paciente}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reportes/turnos-por-especialidad",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reportes",
+                "turnos-por-especialidad"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Responde 403\", function () { pm.response.to.have.status(403); });",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Estructura uniforme (code/status/data)\", function () {",
+                  "    pm.expect(r).to.have.property(\"code\");",
+                  "    pm.expect(r).to.have.property(\"status\");",
+                  "    pm.expect(r).to.have.property(\"data\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reportes sin Token (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reportes/tasa-cancelacion",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reportes",
+                "tasa-cancelacion"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Responde 401\", function () { pm.response.to.have.status(401); });",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Estructura uniforme (code/status/data)\", function () {",
+                  "    pm.expect(r).to.have.property(\"code\");",
+                  "    pm.expect(r).to.have.property(\"status\");",
+                  "    pm.expect(r).to.have.property(\"data\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Documentación (Swagger)",
+      "item": [
+        {
+          "name": "Abrir Swagger UI",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api-docs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api-docs"
+              ]
+            },
+            "description": "Documentación interactiva de los 42 endpoints. Abrir en el navegador: http://localhost:3000/api-docs"
+          }
+        },
+        {
+          "name": "Descargar especificación OpenAPI",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api-docs.json",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api-docs.json"
+              ]
+            },
+            "description": "Spec OpenAPI 3.0 en crudo, importable desde otras herramientas."
+          }
         }
       ]
     }

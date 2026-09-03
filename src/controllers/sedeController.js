@@ -1,7 +1,6 @@
 // src/controllers/sedeController.js
 const pool = require('../config/db');
 const { sendResponse } = require('../utils/responseHandler');
-const { registrarAuditoria } = require('../utils/auditoriaHelper');
 
 // GET /sedes - Listar todas las sedes
 const getAllSedes = async (req, res) => {
@@ -43,14 +42,6 @@ const createSede = async (req, res) => {
       [nombre, direccion || null, telefono || null]
     );
 
-    // Registrar log de auditoría (ALTA)
-    await registrarAuditoria(
-      req.user.id,
-      'ALTA',
-      'sede',
-      result.insertId,
-      `Alta de sede: ${nombre}`
-    );
 
     return sendResponse(res, 201, 'Sede creada exitosamente', {
       id: result.insertId,
@@ -84,14 +75,6 @@ const updateSede = async (req, res) => {
       [nombre, direccion || null, telefono || null, id]
     );
 
-    // Registrar log de auditoría (MODIFICACION)
-    await registrarAuditoria(
-      req.user.id,
-      'MODIFICACION',
-      'sede',
-      Number(id),
-      `Modificación de sede id=${id} (${nombre})`
-    );
 
     return sendResponse(res, 200, 'Sede actualizada exitosamente', {
       id: Number(id),
@@ -129,14 +112,6 @@ const deleteSede = async (req, res) => {
 
     await pool.query('DELETE FROM sede WHERE id = ?', [id]);
 
-    // Registrar log de auditoría (BAJA)
-    await registrarAuditoria(
-      req.user.id,
-      'BAJA',
-      'sede',
-      Number(id),
-      `Baja de sede id=${id}`
-    );
 
     return sendResponse(res, 200, 'Sede eliminada exitosamente', { id: Number(id) });
   } catch (error) {

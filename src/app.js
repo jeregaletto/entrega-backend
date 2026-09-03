@@ -4,6 +4,10 @@ require('dotenv').config();
 const pool = require('./config/db');
 const { sendResponse } = require('./utils/responseHandler');
 
+// Documentación de la API (Swagger UI)
+const swaggerUi = require('swagger-ui-express');
+const openapi = require('./docs/openapi.json');
+
 // Importar rutas de Semana 1
 const authRoutes = require('./routes/authRoutes');
 const testRoutes = require('./routes/testRoutes');
@@ -28,6 +32,15 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware para parsear JSON
 app.use(express.json());
+
+// Documentación interactiva de la API: http://localhost:3000/api-docs
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openapi, {
+  customSiteTitle: 'API Clínica Médica - Documentación',
+  swaggerOptions: { persistAuthorization: true }
+}));
+
+// Especificación OpenAPI en crudo, por si se quiere importar en otra herramienta
+app.get('/api-docs.json', (req, res) => res.json(openapi));
 
 // Endpoint GET /health
 app.get('/health', async (req, res) => {

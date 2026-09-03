@@ -44,10 +44,11 @@ const getNotificaciones = async (req, res) => {
     );
 
     // Se informa el total sin leer para que el front pueda mostrar el contador
-    const [[{ no_leidas }]] = await pool.query(
+    const [conteo] = await pool.query(
       'SELECT COUNT(*) AS no_leidas FROM notificacion WHERE id_usuario = ? AND leida = 0',
       [usuario.id]
     );
+    const no_leidas = conteo.length > 0 ? Number(conteo[0].no_leidas) : 0;
 
     return sendResponse(res, 200, 'Notificaciones obtenidas con éxito', {
       no_leidas,

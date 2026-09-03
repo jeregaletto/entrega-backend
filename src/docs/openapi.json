@@ -1,0 +1,4984 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "API Clínica Médica",
+    "version": "4.0.0",
+    "description": "Documentación completa de la API construida a lo largo de las cuatro semanas de backend.\n\n## Autenticación\nSalvo los endpoints marcados como públicos, todos esperan el JWT en la cabecera `Authorization: Bearer <token>`. El token se obtiene en `POST /auth/login` y lleva en su payload `id`, `rol` e `id_sede`.\n\n## Roles\n- `admin` — administración: sedes, especialidades, coberturas, auditoría y reportes.\n- `operador` — opera sobre turnos y agenda de **su propia sede**.\n- `medico` — gestiona **su propia** agenda, atiende sus turnos y carga el historial de lo que atendió.\n- `paciente` — solicita y cancela **sus** turnos, y consulta su historial y sus notificaciones.\n\n> El enunciado nombra a este rol `administrador`; en la base de datos y en el código está cargado como `admin`.\n\n## Formato de respuesta\n**Todas** las respuestas, de éxito y de error, comparten la misma estructura:\n\n```json\n{ \"code\": 200, \"status\": \"Mensaje descriptivo\", \"data\": null }\n```\n\nLos errores de validación se devuelven con un código apropiado (400, 401, 403, 404), nunca como 500."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Entorno local de desarrollo"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Semana 1 · Auth",
+      "description": "Registro, login, perfil y verificación de roles."
+    },
+    {
+      "name": "Semana 2 · Sedes",
+      "description": "CRUD de sedes. Exclusivo del rol admin."
+    },
+    {
+      "name": "Semana 2 · Especialidades",
+      "description": "CRUD de especialidades. Exclusivo del rol admin."
+    },
+    {
+      "name": "Semana 2 · Coberturas",
+      "description": "CRUD de coberturas. El listado es público."
+    },
+    {
+      "name": "Semana 2 · Agenda",
+      "description": "Franjas horarias de atención por médico, especialidad y sede."
+    },
+    {
+      "name": "Semana 3 · Turnos",
+      "description": "Alta, cancelación, atención y listados de turnos."
+    },
+    {
+      "name": "Semana 3 · Historial clínico",
+      "description": "Diagnóstico y tratamiento de turnos atendidos."
+    },
+    {
+      "name": "Semana 3 · Notificaciones",
+      "description": "Avisos generados automáticamente por eventos de turno."
+    },
+    {
+      "name": "Semana 4 · Auditoría",
+      "description": "Registro automático de altas, bajas y modificaciones."
+    },
+    {
+      "name": "Semana 4 · Reportes",
+      "description": "Estadísticas agregadas. Exclusivo del rol admin."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT devuelto por POST /auth/login."
+      }
+    },
+    "schemas": {
+      "RespuestaUniforme": {
+        "type": "object",
+        "description": "Estructura común a todas las respuestas de la API.",
+        "required": [
+          "code",
+          "status",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "description": "Código HTTP, replicado en el cuerpo.",
+            "example": 200
+          },
+          "status": {
+            "type": "string",
+            "description": "Texto descriptivo del resultado.",
+            "example": "Operación realizada con éxito"
+          },
+          "data": {
+            "nullable": true,
+            "description": "Datos de la respuesta, o null cuando no corresponde."
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "Semana 1 · Auth"
+        ],
+        "summary": "Estado del servidor y la base de datos",
+        "description": "**Rol requerido:** público (sin token)\n\nVerifica que la API responde y que la conexión con MySQL está viva.",
+        "responses": {
+          "200": {
+            "description": "Servidor y base de datos operativos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Servidor y Base de Datos funcionando correctamente",
+                  "data": {
+                    "status": "OK",
+                    "timestamp": "2026-09-03T12:00:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/coberturas": {
+      "get": {
+        "tags": [
+          "Semana 1 · Auth"
+        ],
+        "summary": "Listar coberturas disponibles",
+        "description": "**Rol requerido:** público (sin token)\n\nServicio de solo lectura pensado para poblar el selector de coberturas del formulario de registro.",
+        "responses": {
+          "200": {
+            "description": "Listado de coberturas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Lista de coberturas obtenida con éxito",
+                  "data": [
+                    {
+                      "id": 1,
+                      "nombre": "OSDE"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/registro": {
+      "post": {
+        "tags": [
+          "Semana 1 · Auth"
+        ],
+        "summary": "Registro de un paciente",
+        "description": "**Rol requerido:** público (sin token)\n\nAlta de usuario con rol `paciente` asignado automáticamente. La contraseña se guarda hasheada con bcrypt. Queda registrada en `log_auditoria` como ALTA de la entidad `usuario`.",
+        "responses": {
+          "201": {
+            "description": "Usuario creado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 201,
+                  "status": "Usuario registrado exitosamente",
+                  "data": {
+                    "id": 42,
+                    "nombre": "Juan",
+                    "apellido": "Pérez",
+                    "dni": "12345678",
+                    "email": "juan@example.com",
+                    "rol": "paciente"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Faltan campos obligatorios, o el DNI/email ya están registrados.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "El DNI ya se encuentra registrado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "nombre",
+                  "apellido",
+                  "dni",
+                  "email",
+                  "password",
+                  "fecha_nacimiento"
+                ],
+                "properties": {
+                  "nombre": {
+                    "type": "string",
+                    "description": "Nombre del paciente."
+                  },
+                  "apellido": {
+                    "type": "string",
+                    "description": "Apellido del paciente."
+                  },
+                  "dni": {
+                    "type": "string",
+                    "description": "DNI, único en el sistema."
+                  },
+                  "email": {
+                    "type": "string",
+                    "description": "Email, único en el sistema.",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "Contraseña en texto plano; se hashea antes de guardarse."
+                  },
+                  "fecha_nacimiento": {
+                    "type": "string",
+                    "description": "Formato YYYY-MM-DD.",
+                    "format": "date"
+                  },
+                  "telefono": {
+                    "type": "string",
+                    "description": "Opcional."
+                  },
+                  "id_cobertura": {
+                    "type": "integer",
+                    "description": "Opcional. Id de la cobertura elegida."
+                  }
+                }
+              },
+              "example": {
+                "nombre": "Juan",
+                "apellido": "Pérez",
+                "dni": "12345678",
+                "email": "juan@example.com",
+                "password": "Password123!",
+                "fecha_nacimiento": "1990-05-15",
+                "telefono": "1122334455",
+                "id_cobertura": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Semana 1 · Auth"
+        ],
+        "summary": "Inicio de sesión",
+        "description": "**Rol requerido:** público (sin token)\n\nDevuelve el JWT que el resto de los endpoints espera en `Authorization: Bearer <token>`. El token lleva en su payload `id`, `rol` e `id_sede`.",
+        "responses": {
+          "200": {
+            "description": "Login correcto; se devuelve el token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Inicio de sesión exitoso",
+                  "data": {
+                    "token": "eyJhbGciOi...",
+                    "usuario": {
+                      "id": 42,
+                      "nombre": "Juan",
+                      "apellido": "Pérez",
+                      "email": "juan@example.com",
+                      "rol": "paciente",
+                      "id_sede": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "DNI inexistente o contraseña incorrecta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Credenciales inválidas (DNI o contraseña incorrectos).",
+                  "data": null
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. La respuesta mantiene la estructura uniforme.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "dni",
+                  "password"
+                ],
+                "properties": {
+                  "dni": {
+                    "type": "string",
+                    "description": "DNI del usuario."
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "Contraseña."
+                  }
+                }
+              },
+              "example": {
+                "dni": "12345678",
+                "password": "Password123!"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/perfil": {
+      "get": {
+        "tags": [
+          "Semana 1 · Auth"
+        ],
+        "summary": "Perfil del usuario autenticado",
+        "description": "**Rol requerido:** cualquier rol autenticado\n\nDevuelve los datos del usuario dueño del token, incluido el nombre de su cobertura.",
+        "responses": {
+          "200": {
+            "description": "Perfil del usuario.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Perfil obtenido con éxito",
+                  "data": {
+                    "id": 42,
+                    "nombre": "Juan",
+                    "apellido": "Pérez",
+                    "dni": "12345678",
+                    "email": "juan@example.com",
+                    "rol": "paciente",
+                    "id_sede": null,
+                    "id_cobertura": 1,
+                    "cobertura_nombre": "OSDE"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso solicitado no existe.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 404,
+                  "status": "Recurso no encontrado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/test/admin": {
+      "get": {
+        "tags": [
+          "Semana 1 · Auth"
+        ],
+        "summary": "Endpoint de prueba de rol",
+        "description": "**Rol requerido:** admin\n\nSirve para comprobar que `verificarToken` + `verificarRol` bloquean correctamente a los demás roles.",
+        "responses": {
+          "200": {
+            "description": "Acceso concedido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Acceso concedido a la sección de administración.",
+                  "data": {
+                    "user": {
+                      "id": 1,
+                      "rol": "admin"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/sedes": {
+      "get": {
+        "tags": [
+          "Semana 2 · Sedes"
+        ],
+        "summary": "Listar sedes",
+        "description": "**Rol requerido:** admin",
+        "responses": {
+          "200": {
+            "description": "Listado completo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Lista obtenida con éxito",
+                  "data": [
+                    {
+                      "id": 1,
+                      "nombre": "Sede Central",
+                      "direccion": "Av. Siempre Viva 123",
+                      "telefono": "1122334455"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Semana 2 · Sedes"
+        ],
+        "summary": "Crear sede",
+        "description": "**Rol requerido:** admin\n\nQueda registrada en `log_auditoria` como ALTA de la entidad `sede`.",
+        "responses": {
+          "201": {
+            "description": "Creada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 201,
+                  "status": "Creado exitosamente",
+                  "data": {
+                    "id": 1,
+                    "nombre": "Sede Central",
+                    "direccion": "Av. Siempre Viva 123",
+                    "telefono": "1122334455"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. La respuesta mantiene la estructura uniforme.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "nombre"
+                ],
+                "properties": {
+                  "nombre": {
+                    "type": "string",
+                    "description": "Nombre de la sede."
+                  },
+                  "direccion": {
+                    "type": "string",
+                    "description": "Dirección."
+                  },
+                  "telefono": {
+                    "type": "string",
+                    "description": "Teléfono."
+                  }
+                }
+              },
+              "example": {
+                "nombre": "Sede Central",
+                "direccion": "Av. Siempre Viva 123",
+                "telefono": "1122334455"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sedes/{id}": {
+      "get": {
+        "tags": [
+          "Semana 2 · Sedes"
+        ],
+        "summary": "Obtener sede por id",
+        "description": "**Rol requerido:** admin",
+        "responses": {
+          "200": {
+            "description": "Sede encontrada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Obtenido con éxito",
+                  "data": {
+                    "id": 1,
+                    "nombre": "Sede Central",
+                    "direccion": "Av. Siempre Viva 123",
+                    "telefono": "1122334455"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. La respuesta mantiene la estructura uniforme.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso solicitado no existe.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 404,
+                  "status": "Recurso no encontrado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador numérico del recurso.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Semana 2 · Sedes"
+        ],
+        "summary": "Modificar sede",
+        "description": "**Rol requerido:** admin\n\nQueda registrada en `log_auditoria` como MODIFICACION de la entidad `sede`.",
+        "responses": {
+          "200": {
+            "description": "Modificada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Modificado exitosamente",
+                  "data": {
+                    "id": 1,
+                    "nombre": "Sede Central",
+                    "direccion": "Av. Siempre Viva 123",
+                    "telefono": "1122334455"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. La respuesta mantiene la estructura uniforme.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso solicitado no existe.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 404,
+                  "status": "Recurso no encontrado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador numérico del recurso.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "nombre"
+                ],
+                "properties": {
+                  "nombre": {
+                    "type": "string",
+                    "description": "Nombre de la sede."
+                  },
+                  "direccion": {
+                    "type": "string",
+                    "description": "Dirección."
+                  },
+                  "telefono": {
+                    "type": "string",
+                    "description": "Teléfono."
+                  }
+                }
+              },
+              "example": {
+                "nombre": "Sede Central",
+                "direccion": "Av. Siempre Viva 123",
+                "telefono": "1122334455"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Semana 2 · Sedes"
+        ],
+        "summary": "Eliminar sede",
+        "description": "**Rol requerido:** admin\n\nAntes de borrar se valida que la sede no tenga médicos, operadores ni agenda asociada.\n\nQueda registrada en `log_auditoria` como BAJA de la entidad `sede`.",
+        "responses": {
+          "200": {
+            "description": "Eliminada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Eliminado exitosamente",
+                  "data": {
+                    "id": 1
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No se puede eliminar: tiene dependencias asociadas. Error controlado, nunca un 500.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "No se puede eliminar la sede: tiene registros asociados.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso solicitado no existe.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 404,
+                  "status": "Recurso no encontrado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador numérico del recurso.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ]
+      }
+    },
+    "/especialidades": {
+      "get": {
+        "tags": [
+          "Semana 2 · Especialidades"
+        ],
+        "summary": "Listar especialidades",
+        "description": "**Rol requerido:** admin",
+        "responses": {
+          "200": {
+            "description": "Listado completo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Lista obtenida con éxito",
+                  "data": [
+                    {
+                      "id": 1,
+                      "descripcion": "Cardiología"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Semana 2 · Especialidades"
+        ],
+        "summary": "Crear especialidad",
+        "description": "**Rol requerido:** admin\n\nQueda registrada en `log_auditoria` como ALTA de la entidad `especialidad`.",
+        "responses": {
+          "201": {
+            "description": "Creada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 201,
+                  "status": "Creado exitosamente",
+                  "data": {
+                    "id": 1,
+                    "descripcion": "Cardiología"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. La respuesta mantiene la estructura uniforme.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "descripcion"
+                ],
+                "properties": {
+                  "descripcion": {
+                    "type": "string",
+                    "description": "Nombre de la especialidad."
+                  }
+                }
+              },
+              "example": {
+                "descripcion": "Cardiología"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/especialidades/{id}": {
+      "get": {
+        "tags": [
+          "Semana 2 · Especialidades"
+        ],
+        "summary": "Obtener especialidad por id",
+        "description": "**Rol requerido:** admin",
+        "responses": {
+          "200": {
+            "description": "Especialidad encontrada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Obtenido con éxito",
+                  "data": {
+                    "id": 1,
+                    "descripcion": "Cardiología"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. La respuesta mantiene la estructura uniforme.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso solicitado no existe.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 404,
+                  "status": "Recurso no encontrado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador numérico del recurso.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Semana 2 · Especialidades"
+        ],
+        "summary": "Modificar especialidad",
+        "description": "**Rol requerido:** admin\n\nQueda registrada en `log_auditoria` como MODIFICACION de la entidad `especialidad`.",
+        "responses": {
+          "200": {
+            "description": "Modificada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Modificado exitosamente",
+                  "data": {
+                    "id": 1,
+                    "descripcion": "Cardiología"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. La respuesta mantiene la estructura uniforme.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso solicitado no existe.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 404,
+                  "status": "Recurso no encontrado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador numérico del recurso.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "descripcion"
+                ],
+                "properties": {
+                  "descripcion": {
+                    "type": "string",
+                    "description": "Nombre de la especialidad."
+                  }
+                }
+              },
+              "example": {
+                "descripcion": "Cardiología"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Semana 2 · Especialidades"
+        ],
+        "summary": "Eliminar especialidad",
+        "description": "**Rol requerido:** admin\n\nAntes de borrar se valida que ningún médico la tenga asociada en `medico_especialidad`.\n\nQueda registrada en `log_auditoria` como BAJA de la entidad `especialidad`.",
+        "responses": {
+          "200": {
+            "description": "Eliminada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Eliminado exitosamente",
+                  "data": {
+                    "id": 1
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No se puede eliminar: tiene dependencias asociadas. Error controlado, nunca un 500.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "No se puede eliminar la especialidad: tiene registros asociados.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso solicitado no existe.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 404,
+                  "status": "Recurso no encontrado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador numérico del recurso.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ]
+      }
+    },
+    "/coberturas": {
+      "get": {
+        "tags": [
+          "Semana 2 · Coberturas"
+        ],
+        "summary": "Listar coberturas",
+        "description": "**Rol requerido:** público (sin token)\n\nEl listado es público y se reutiliza desde el registro de pacientes.",
+        "responses": {
+          "200": {
+            "description": "Listado completo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Lista obtenida con éxito",
+                  "data": [
+                    {
+                      "id": 1,
+                      "nombre": "OSDE"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Semana 2 · Coberturas"
+        ],
+        "summary": "Crear cobertura",
+        "description": "**Rol requerido:** admin\n\nQueda registrada en `log_auditoria` como ALTA de la entidad `cobertura`.",
+        "responses": {
+          "201": {
+            "description": "Creada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 201,
+                  "status": "Creado exitosamente",
+                  "data": {
+                    "id": 1,
+                    "nombre": "OSDE"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. La respuesta mantiene la estructura uniforme.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "nombre"
+                ],
+                "properties": {
+                  "nombre": {
+                    "type": "string",
+                    "description": "Nombre de la cobertura."
+                  }
+                }
+              },
+              "example": {
+                "nombre": "OSDE"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/coberturas/{id}": {
+      "get": {
+        "tags": [
+          "Semana 2 · Coberturas"
+        ],
+        "summary": "Obtener cobertura por id",
+        "description": "**Rol requerido:** público (sin token)",
+        "responses": {
+          "200": {
+            "description": "Cobertura encontrada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Obtenido con éxito",
+                  "data": {
+                    "id": 1,
+                    "nombre": "OSDE"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. La respuesta mantiene la estructura uniforme.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso solicitado no existe.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 404,
+                  "status": "Recurso no encontrado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador numérico del recurso.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Semana 2 · Coberturas"
+        ],
+        "summary": "Modificar cobertura",
+        "description": "**Rol requerido:** admin\n\nQueda registrada en `log_auditoria` como MODIFICACION de la entidad `cobertura`.",
+        "responses": {
+          "200": {
+            "description": "Modificada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Modificado exitosamente",
+                  "data": {
+                    "id": 1,
+                    "nombre": "OSDE"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. La respuesta mantiene la estructura uniforme.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso solicitado no existe.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 404,
+                  "status": "Recurso no encontrado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador numérico del recurso.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "nombre"
+                ],
+                "properties": {
+                  "nombre": {
+                    "type": "string",
+                    "description": "Nombre de la cobertura."
+                  }
+                }
+              },
+              "example": {
+                "nombre": "OSDE"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Semana 2 · Coberturas"
+        ],
+        "summary": "Eliminar cobertura",
+        "description": "**Rol requerido:** admin\n\nAntes de borrar se valida que ningún usuario la tenga asignada.\n\nQueda registrada en `log_auditoria` como BAJA de la entidad `cobertura`.",
+        "responses": {
+          "200": {
+            "description": "Eliminada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Eliminado exitosamente",
+                  "data": {
+                    "id": 1
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No se puede eliminar: tiene dependencias asociadas. Error controlado, nunca un 500.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "No se puede eliminar la cobertura: tiene registros asociados.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso solicitado no existe.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 404,
+                  "status": "Recurso no encontrado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador numérico del recurso.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ]
+      }
+    },
+    "/agenda": {
+      "get": {
+        "tags": [
+          "Semana 2 · Agenda"
+        ],
+        "summary": "Listar franjas de agenda",
+        "description": "**Rol requerido:** medico (solo la propia), operador, admin\n\nFiltrable por médico, sede y fecha. El rol `medico` queda restringido a su propia agenda.",
+        "responses": {
+          "200": {
+            "description": "Franjas encontradas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Agenda obtenida con éxito",
+                  "data": [
+                    {
+                      "id": 5,
+                      "fecha": "2026-09-01",
+                      "hora_entrada": "08:00",
+                      "hora_salida": "12:00",
+                      "id_medico": 7,
+                      "id_especialidad": 2,
+                      "id_sede": 1
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. La respuesta mantiene la estructura uniforme.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id_medico",
+            "in": "query",
+            "required": false,
+            "description": "Filtra por médico.",
+            "schema": {
+              "type": "integer"
+            },
+            "example": 7
+          },
+          {
+            "name": "id_sede",
+            "in": "query",
+            "required": false,
+            "description": "Filtra por sede.",
+            "schema": {
+              "type": "integer"
+            },
+            "example": 1
+          },
+          {
+            "name": "fecha",
+            "in": "query",
+            "required": false,
+            "description": "Filtra por fecha exacta, YYYY-MM-DD.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-09-01"
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Semana 2 · Agenda"
+        ],
+        "summary": "Crear franja de agenda",
+        "description": "**Rol requerido:** medico (solo la propia), operador, admin\n\nUn médico puede tener más de un rango horario para la misma fecha.",
+        "responses": {
+          "201": {
+            "description": "Franja creada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 201,
+                  "status": "Franja de agenda creada exitosamente",
+                  "data": {
+                    "id": 5,
+                    "fecha": "2026-09-01",
+                    "hora_entrada": "08:00",
+                    "hora_salida": "12:00",
+                    "id_medico": 7,
+                    "id_especialidad": 2,
+                    "id_sede": 1
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. La respuesta mantiene la estructura uniforme.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "hora_entrada",
+                  "hora_salida",
+                  "fecha",
+                  "id_medico",
+                  "id_especialidad",
+                  "id_sede"
+                ],
+                "properties": {
+                  "hora_entrada": {
+                    "type": "string",
+                    "description": "Formato HH:MM o HH:MM:SS."
+                  },
+                  "hora_salida": {
+                    "type": "string",
+                    "description": "Formato HH:MM o HH:MM:SS."
+                  },
+                  "fecha": {
+                    "type": "string",
+                    "description": "Formato YYYY-MM-DD.",
+                    "format": "date"
+                  },
+                  "id_medico": {
+                    "type": "integer",
+                    "description": "Usuario con rol medico."
+                  },
+                  "id_especialidad": {
+                    "type": "integer",
+                    "description": "Especialidad de la franja."
+                  },
+                  "id_sede": {
+                    "type": "integer",
+                    "description": "Sede donde atiende."
+                  }
+                }
+              },
+              "example": {
+                "hora_entrada": "08:00",
+                "hora_salida": "12:00",
+                "fecha": "2026-09-01",
+                "id_medico": 7,
+                "id_especialidad": 2,
+                "id_sede": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agenda/{id}": {
+      "get": {
+        "tags": [
+          "Semana 2 · Agenda"
+        ],
+        "summary": "Obtener franja por id",
+        "description": "**Rol requerido:** medico (solo la propia), operador, admin",
+        "responses": {
+          "200": {
+            "description": "Franja encontrada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Obtenida con éxito",
+                  "data": {
+                    "id": 5,
+                    "fecha": "2026-09-01",
+                    "hora_entrada": "08:00",
+                    "hora_salida": "12:00",
+                    "id_medico": 7,
+                    "id_especialidad": 2,
+                    "id_sede": 1
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. La respuesta mantiene la estructura uniforme.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso solicitado no existe.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 404,
+                  "status": "Recurso no encontrado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador numérico del recurso.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Semana 2 · Agenda"
+        ],
+        "summary": "Modificar franja",
+        "description": "**Rol requerido:** medico (solo la propia), operador, admin",
+        "responses": {
+          "200": {
+            "description": "Franja modificada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Modificada exitosamente",
+                  "data": {
+                    "id": 5,
+                    "fecha": "2026-09-01",
+                    "hora_entrada": "08:00",
+                    "hora_salida": "12:00",
+                    "id_medico": 7,
+                    "id_especialidad": 2,
+                    "id_sede": 1
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. La respuesta mantiene la estructura uniforme.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso solicitado no existe.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 404,
+                  "status": "Recurso no encontrado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador numérico del recurso.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "hora_entrada",
+                  "hora_salida",
+                  "fecha",
+                  "id_medico",
+                  "id_especialidad",
+                  "id_sede"
+                ],
+                "properties": {
+                  "hora_entrada": {
+                    "type": "string",
+                    "description": "Formato HH:MM o HH:MM:SS."
+                  },
+                  "hora_salida": {
+                    "type": "string",
+                    "description": "Formato HH:MM o HH:MM:SS."
+                  },
+                  "fecha": {
+                    "type": "string",
+                    "description": "Formato YYYY-MM-DD.",
+                    "format": "date"
+                  },
+                  "id_medico": {
+                    "type": "integer",
+                    "description": "Usuario con rol medico."
+                  },
+                  "id_especialidad": {
+                    "type": "integer",
+                    "description": "Especialidad de la franja."
+                  },
+                  "id_sede": {
+                    "type": "integer",
+                    "description": "Sede donde atiende."
+                  }
+                }
+              },
+              "example": {
+                "hora_entrada": "08:00",
+                "hora_salida": "12:00",
+                "fecha": "2026-09-01",
+                "id_medico": 7,
+                "id_especialidad": 2,
+                "id_sede": 1
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Semana 2 · Agenda"
+        ],
+        "summary": "Eliminar franja",
+        "description": "**Rol requerido:** medico (solo la propia), operador, admin",
+        "responses": {
+          "200": {
+            "description": "Franja eliminada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Eliminada exitosamente",
+                  "data": {
+                    "id": 5
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. La respuesta mantiene la estructura uniforme.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso solicitado no existe.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 404,
+                  "status": "Recurso no encontrado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador numérico del recurso.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ]
+      }
+    },
+    "/turnos": {
+      "post": {
+        "tags": [
+          "Semana 3 · Turnos"
+        ],
+        "summary": "Solicitar un turno",
+        "description": "**Rol requerido:** paciente, operador, admin\n\nEl paciente lo pide para sí mismo; el operador o el admin deben indicar `id_paciente`.\n\n**Validaciones:** la hora debe caer dentro del rango de la franja de agenda elegida y no puede estar tomada por otro turno confirmado. La cobertura **no se acepta por body**: se toma siempre de la registrada por el paciente. El turno nace con `estado = 'confirmado'` y dispara una notificación `turno_confirmado`.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Turno confirmado y notificación generada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 201,
+                  "status": "Turno creado y confirmado exitosamente",
+                  "data": {
+                    "id": 55,
+                    "nota": "Control clínico anual",
+                    "id_agenda": 10,
+                    "fecha": "2026-09-01",
+                    "hora": "09:00",
+                    "id_paciente": 42,
+                    "id_cobertura": 1,
+                    "estado": "confirmado"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Nota faltante, horario fuera de la franja, u horario ya reservado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "El horario solicitado (15:00) está fuera del rango de atención de la franja horaria (08:00 a 12:00).",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "hora",
+                  "nota"
+                ],
+                "properties": {
+                  "id_agenda": {
+                    "type": "integer",
+                    "description": "Franja de agenda. Alternativa a informar id_medico + id_especialidad + id_sede + fecha."
+                  },
+                  "id_medico": {
+                    "type": "integer",
+                    "description": "Solo si no se envía id_agenda."
+                  },
+                  "id_especialidad": {
+                    "type": "integer",
+                    "description": "Solo si no se envía id_agenda."
+                  },
+                  "id_sede": {
+                    "type": "integer",
+                    "description": "Solo si no se envía id_agenda."
+                  },
+                  "fecha": {
+                    "type": "string",
+                    "description": "Solo si no se envía id_agenda. YYYY-MM-DD.",
+                    "format": "date"
+                  },
+                  "hora": {
+                    "type": "string",
+                    "description": "Hora solicitada, HH:MM."
+                  },
+                  "nota": {
+                    "type": "string",
+                    "description": "Motivo de la consulta. Obligatoria."
+                  },
+                  "id_paciente": {
+                    "type": "integer",
+                    "description": "Obligatorio si lo carga un operador o un admin."
+                  }
+                }
+              },
+              "example": {
+                "id_agenda": 10,
+                "hora": "09:00",
+                "nota": "Control clínico anual"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/turnos/mis-turnos": {
+      "get": {
+        "tags": [
+          "Semana 3 · Turnos"
+        ],
+        "summary": "Mis turnos",
+        "description": "**Rol requerido:** paciente\n\nTurnos del paciente autenticado, ordenados **del más próximo al menos próximo**.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Turnos del paciente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Turnos del paciente obtenidos con éxito",
+                  "data": [
+                    {
+                      "id": 55,
+                      "fecha": "2026-09-01",
+                      "hora": "09:00",
+                      "estado": "confirmado",
+                      "nota": "Control anual",
+                      "id_agenda": 10,
+                      "id_paciente": 42,
+                      "paciente": "Pérez, Juan",
+                      "id_cobertura": 1,
+                      "cobertura": "OSDE",
+                      "id_medico": 7,
+                      "medico": "Gómez, Ana",
+                      "id_especialidad": 2,
+                      "especialidad": "Cardiología",
+                      "id_sede": 1,
+                      "sede": "Sede Central"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. Estructura uniforme, nunca un 500.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "description": "Filtra por estado: confirmado, cancelado o atendido.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "confirmado"
+          }
+        ]
+      }
+    },
+    "/turnos/programados": {
+      "get": {
+        "tags": [
+          "Semana 3 · Turnos"
+        ],
+        "summary": "Turnos programados de un médico",
+        "description": "**Rol requerido:** medico (solo los propios), operador (su sede), admin\n\nAgenda del día de un médico. El `medico` solo ve los suyos; el `operador` queda acotado a su sede; el `admin` consulta cualquiera.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Turnos programados.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Turnos programados obtenidos con éxito",
+                  "data": [
+                    {
+                      "id": 55,
+                      "fecha": "2026-09-01",
+                      "hora": "09:00",
+                      "estado": "confirmado",
+                      "nota": "Control anual",
+                      "id_agenda": 10,
+                      "id_paciente": 42,
+                      "paciente": "Pérez, Juan",
+                      "id_cobertura": 1,
+                      "cobertura": "OSDE",
+                      "id_medico": 7,
+                      "medico": "Gómez, Ana",
+                      "id_especialidad": 2,
+                      "especialidad": "Cardiología",
+                      "id_sede": 1,
+                      "sede": "Sede Central"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. Estructura uniforme, nunca un 500.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "fecha",
+            "in": "query",
+            "required": true,
+            "description": "Fecha a consultar, YYYY-MM-DD. **Obligatorio.**",
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-09-01"
+          },
+          {
+            "name": "id_medico",
+            "in": "query",
+            "required": false,
+            "description": "Médico a consultar. Ignorado para el rol medico.",
+            "schema": {
+              "type": "integer"
+            },
+            "example": 7
+          }
+        ]
+      }
+    },
+    "/turnos/sede": {
+      "get": {
+        "tags": [
+          "Semana 3 · Turnos"
+        ],
+        "summary": "Turnos de una sede",
+        "description": "**Rol requerido:** operador (su sede), admin\n\nListado operativo del día para una sede.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Turnos de la sede.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Turnos de la sede obtenidos con éxito",
+                  "data": [
+                    {
+                      "id": 55,
+                      "fecha": "2026-09-01",
+                      "hora": "09:00",
+                      "estado": "confirmado",
+                      "nota": "Control anual",
+                      "id_agenda": 10,
+                      "id_paciente": 42,
+                      "paciente": "Pérez, Juan",
+                      "id_cobertura": 1,
+                      "cobertura": "OSDE",
+                      "id_medico": 7,
+                      "medico": "Gómez, Ana",
+                      "id_especialidad": 2,
+                      "especialidad": "Cardiología",
+                      "id_sede": 1,
+                      "sede": "Sede Central"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. Estructura uniforme, nunca un 500.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "fecha",
+            "in": "query",
+            "required": true,
+            "description": "Fecha a consultar, YYYY-MM-DD. **Obligatorio.**",
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-09-01"
+          },
+          {
+            "name": "id_sede",
+            "in": "query",
+            "required": false,
+            "description": "Sede a consultar. El operador solo puede pedir la suya.",
+            "schema": {
+              "type": "integer"
+            },
+            "example": 1
+          }
+        ]
+      }
+    },
+    "/turnos/{id}/cancelar": {
+      "put": {
+        "tags": [
+          "Semana 3 · Turnos"
+        ],
+        "summary": "Cancelar un turno",
+        "description": "**Rol requerido:** paciente (los propios), operador y medico (de su sede), admin\n\nPasa el turno a `estado = 'cancelado'` y genera una notificación `turno_cancelado` para el paciente (y otra para el médico si canceló otra persona). No se puede cancelar un turno ya atendido.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Turno cancelado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Turno cancelado exitosamente",
+                  "data": {
+                    "id": 55,
+                    "estado": "cancelado"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "El turno ya estaba cancelado, o ya fue atendido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "El turno ya se encuentra cancelado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso solicitado no existe.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 404,
+                  "status": "Recurso no encontrado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Id del turno.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ]
+      }
+    },
+    "/turnos/{id}/atender": {
+      "put": {
+        "tags": [
+          "Semana 3 · Turnos"
+        ],
+        "summary": "Marcar un turno como atendido",
+        "description": "**Rol requerido:** medico (solo los de su propia agenda)\n\nPasa el turno a `estado = 'atendido'` y genera una notificación `turno_atendido`. Habilita la carga posterior del historial clínico, que queda asociado por `id_turno`.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Turno atendido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Turno marcado como atendido exitosamente",
+                  "data": {
+                    "id": 55,
+                    "estado": "atendido"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "El turno está cancelado o ya fue atendido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "El turno ya ha sido marcado como atendido con anterioridad.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso solicitado no existe.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 404,
+                  "status": "Recurso no encontrado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Id del turno.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ]
+      }
+    },
+    "/historial-clinico": {
+      "post": {
+        "tags": [
+          "Semana 3 · Historial clínico"
+        ],
+        "summary": "Registrar historial de un turno atendido",
+        "description": "**Rol requerido:** medico (solo turnos que atendió él mismo)\n\nEl turno debe estar en `estado = 'atendido'` y no tener ya un historial cargado. El `id_paciente` no se acepta por body: se toma del turno.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Historial registrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 201,
+                  "status": "Historial clínico registrado exitosamente",
+                  "data": {
+                    "id": 3,
+                    "id_turno": 55,
+                    "diagnostico": "Hipertensión leve",
+                    "tratamiento": "Enalapril 5mg",
+                    "observaciones": "Control en 30 días",
+                    "fecha": "2026-09-01",
+                    "turno_fecha": "2026-09-01",
+                    "turno_hora": "09:00",
+                    "medico_nombre": "Ana Gómez",
+                    "especialidad_descripcion": "Cardiología",
+                    "sede_nombre": "Sede Central"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "El turno no está atendido, o ya tiene historial.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "No se puede registrar historial clínico sobre un turno que no ha sido marcado como \"atendido\".",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso solicitado no existe.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 404,
+                  "status": "Recurso no encontrado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id_turno",
+                  "diagnostico",
+                  "tratamiento"
+                ],
+                "properties": {
+                  "id_turno": {
+                    "type": "integer",
+                    "description": "Turno atendido al que se asocia el registro."
+                  },
+                  "diagnostico": {
+                    "type": "string",
+                    "description": "Diagnóstico. Obligatorio."
+                  },
+                  "tratamiento": {
+                    "type": "string",
+                    "description": "Tratamiento indicado. Obligatorio."
+                  },
+                  "observaciones": {
+                    "type": "string",
+                    "description": "Observaciones. Opcional."
+                  }
+                }
+              },
+              "example": {
+                "id_turno": 55,
+                "diagnostico": "Hipertensión leve",
+                "tratamiento": "Enalapril 5mg",
+                "observaciones": "Control en 30 días"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/historial-clinico/paciente": {
+      "get": {
+        "tags": [
+          "Semana 3 · Historial clínico"
+        ],
+        "summary": "Mi historial clínico",
+        "description": "**Rol requerido:** paciente\n\nDevuelve **la totalidad** del historial del paciente autenticado.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Historial completo del paciente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Historial clínico obtenido con éxito",
+                  "data": [
+                    {
+                      "id": 3,
+                      "id_turno": 55,
+                      "diagnostico": "Hipertensión leve",
+                      "tratamiento": "Enalapril 5mg",
+                      "observaciones": "Control en 30 días",
+                      "fecha": "2026-09-01",
+                      "turno_fecha": "2026-09-01",
+                      "turno_hora": "09:00",
+                      "medico_nombre": "Ana Gómez",
+                      "especialidad_descripcion": "Cardiología",
+                      "sede_nombre": "Sede Central"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/historial-clinico/paciente/{id_paciente}": {
+      "get": {
+        "tags": [
+          "Semana 3 · Historial clínico"
+        ],
+        "summary": "Historial clínico de un paciente",
+        "description": "**Rol requerido:** paciente (solo el propio), medico (solo lo que atendió él)\n\nEl paciente solo puede pedir su propio id, si no recibe 403. El médico recibe únicamente los registros correspondientes a turnos que atendió él mismo.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Historial visible según el rol.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Historial clínico obtenido con éxito",
+                  "data": [
+                    {
+                      "id": 3,
+                      "id_turno": 55,
+                      "diagnostico": "Hipertensión leve",
+                      "tratamiento": "Enalapril 5mg",
+                      "observaciones": "Control en 30 días",
+                      "fecha": "2026-09-01",
+                      "turno_fecha": "2026-09-01",
+                      "turno_hora": "09:00",
+                      "medico_nombre": "Ana Gómez",
+                      "especialidad_descripcion": "Cardiología",
+                      "sede_nombre": "Sede Central"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. Estructura uniforme, nunca un 500.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id_paciente",
+            "in": "path",
+            "required": true,
+            "description": "Id del paciente.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ]
+      }
+    },
+    "/notificaciones": {
+      "get": {
+        "tags": [
+          "Semana 3 · Notificaciones"
+        ],
+        "summary": "Mis notificaciones",
+        "description": "**Rol requerido:** cualquier rol autenticado\n\nDevuelve **solo** las notificaciones del usuario del token, ordenadas de la más reciente a la más antigua.\n\nNo existe endpoint de alta: las notificaciones se generan internamente al confirmar, cancelar o atender un turno, siempre con `leida = 0` y fecha automática.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notificaciones del usuario.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Notificaciones obtenidas con éxito",
+                  "data": {
+                    "no_leidas": 2,
+                    "total": 5,
+                    "notificaciones": [
+                      {
+                        "id": 9,
+                        "id_usuario": 42,
+                        "tipo": "turno_confirmado",
+                        "mensaje": "Su turno para el día 2026-09-01 a las 09:00 ha sido confirmado con éxito.",
+                        "fecha": "2026-09-01 10:15:00",
+                        "leida": 0
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. Estructura uniforme, nunca un 500.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "leida",
+            "in": "query",
+            "required": false,
+            "description": "Filtra por estado de lectura: 0 (no leídas) o 1 (leídas).",
+            "schema": {
+              "type": "string"
+            },
+            "example": "0"
+          }
+        ]
+      }
+    },
+    "/notificaciones/{id}/leer": {
+      "put": {
+        "tags": [
+          "Semana 3 · Notificaciones"
+        ],
+        "summary": "Marcar una notificación como leída",
+        "description": "**Rol requerido:** cualquier rol autenticado (solo las propias)\n\nMarcar una notificación ajena devuelve 403. Si ya estaba leída responde 200 sin volver a escribir.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notificación marcada como leída.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Notificación marcada como leída exitosamente",
+                  "data": {
+                    "id": 9,
+                    "tipo": "turno_confirmado",
+                    "leida": 1
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. Estructura uniforme, nunca un 500.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso solicitado no existe.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 404,
+                  "status": "Recurso no encontrado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Id de la notificación.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "example": 1
+          }
+        ]
+      }
+    },
+    "/auditoria": {
+      "get": {
+        "tags": [
+          "Semana 4 · Auditoría"
+        ],
+        "summary": "Consultar los logs de auditoría",
+        "description": "**Rol requerido:** admin\n\nRegistra automáticamente toda alta, baja y modificación sobre `usuario`, `cobertura`, `especialidad` y `sede`. El registro lo hace un middleware, no cada controlador.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Logs encontrados.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Registros de auditoría obtenidos con éxito",
+                  "data": [
+                    {
+                      "id": 12,
+                      "id_usuario": 1,
+                      "usuario_nombre_completo": "Admin, Root",
+                      "usuario_rol": "admin",
+                      "accion": "ALTA",
+                      "entidad": "sede",
+                      "id_entidad": 4,
+                      "detalle": "Alta de sede id=4: Sede Norte",
+                      "fecha": "2026-09-03 11:20:05"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. Estructura uniforme, nunca un 500.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "usuario",
+            "in": "query",
+            "required": false,
+            "description": "Filtra por el id del usuario que ejecutó la acción.",
+            "schema": {
+              "type": "integer"
+            },
+            "example": 1
+          },
+          {
+            "name": "entidad",
+            "in": "query",
+            "required": false,
+            "description": "Filtra por entidad: usuario, cobertura, especialidad o sede.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "sede"
+          },
+          {
+            "name": "fecha_desde",
+            "in": "query",
+            "required": false,
+            "description": "Inicio del rango, YYYY-MM-DD.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-01-01"
+          },
+          {
+            "name": "fecha_hasta",
+            "in": "query",
+            "required": false,
+            "description": "Fin del rango, YYYY-MM-DD.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-12-31"
+          }
+        ]
+      }
+    },
+    "/reportes/turnos-por-especialidad": {
+      "get": {
+        "tags": [
+          "Semana 4 · Reportes"
+        ],
+        "summary": "Cantidad de turnos por especialidad",
+        "description": "**Rol requerido:** admin\n\nAgrupa los turnos por especialidad, de mayor a menor.\n\nSe puede acotar con `fecha_desde` y `fecha_hasta`; sin filtros toma todo el histórico.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Indicador calculado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Reporte obtenido con éxito",
+                  "data": [
+                    {
+                      "id_especialidad": 2,
+                      "especialidad": "Cardiología",
+                      "cantidad_turnos": 34
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. Estructura uniforme, nunca un 500.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "fecha_desde",
+            "in": "query",
+            "required": false,
+            "description": "Inicio del rango, YYYY-MM-DD.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-01-01"
+          },
+          {
+            "name": "fecha_hasta",
+            "in": "query",
+            "required": false,
+            "description": "Fin del rango, YYYY-MM-DD.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-12-31"
+          }
+        ]
+      }
+    },
+    "/reportes/turnos-por-sede": {
+      "get": {
+        "tags": [
+          "Semana 4 · Reportes"
+        ],
+        "summary": "Cantidad de turnos por sede",
+        "description": "**Rol requerido:** admin\n\nAgrupa los turnos por sede, de mayor a menor.\n\nSe puede acotar con `fecha_desde` y `fecha_hasta`; sin filtros toma todo el histórico.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Indicador calculado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Reporte obtenido con éxito",
+                  "data": [
+                    {
+                      "id_sede": 1,
+                      "sede": "Sede Central",
+                      "cantidad_turnos": 58
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. Estructura uniforme, nunca un 500.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "fecha_desde",
+            "in": "query",
+            "required": false,
+            "description": "Inicio del rango, YYYY-MM-DD.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-01-01"
+          },
+          {
+            "name": "fecha_hasta",
+            "in": "query",
+            "required": false,
+            "description": "Fin del rango, YYYY-MM-DD.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-12-31"
+          }
+        ]
+      }
+    },
+    "/reportes/ranking-medicos": {
+      "get": {
+        "tags": [
+          "Semana 4 · Reportes"
+        ],
+        "summary": "Ranking de médicos por turnos atendidos",
+        "description": "**Rol requerido:** admin\n\nDevuelve **el ranking completo**, no solo el primer puesto, ordenado por cantidad de turnos en estado `atendido`.\n\nSe puede acotar con `fecha_desde` y `fecha_hasta`; sin filtros toma todo el histórico.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Indicador calculado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Reporte obtenido con éxito",
+                  "data": [
+                    {
+                      "id_medico": 7,
+                      "medico": "Gómez, Ana",
+                      "cantidad_atendidos": 21
+                    },
+                    {
+                      "id_medico": 9,
+                      "medico": "Ruiz, Luis",
+                      "cantidad_atendidos": 14
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. Estructura uniforme, nunca un 500.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "fecha_desde",
+            "in": "query",
+            "required": false,
+            "description": "Inicio del rango, YYYY-MM-DD.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-01-01"
+          },
+          {
+            "name": "fecha_hasta",
+            "in": "query",
+            "required": false,
+            "description": "Fin del rango, YYYY-MM-DD.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-12-31"
+          }
+        ]
+      }
+    },
+    "/reportes/tasa-cancelacion": {
+      "get": {
+        "tags": [
+          "Semana 4 · Reportes"
+        ],
+        "summary": "Tasa de cancelación del período",
+        "description": "**Rol requerido:** admin\n\nTurnos cancelados sobre el total de turnos del período.\n\nSe puede acotar con `fecha_desde` y `fecha_hasta`; sin filtros toma todo el histórico.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Indicador calculado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 200,
+                  "status": "Reporte obtenido con éxito",
+                  "data": {
+                    "total_turnos": 100,
+                    "turnos_cancelados": 12,
+                    "tasa_cancelacion": 12.0
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación. Estructura uniforme, nunca un 500.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 400,
+                  "status": "Los datos enviados no son válidos.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, mal formado o expirado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 401,
+                  "status": "Acceso denegado. Token no proporcionado.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol autenticado no tiene permisos sobre este recurso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 403,
+                  "status": "Acceso denegado. No posee los permisos necesarios.",
+                  "data": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUniforme"
+                },
+                "example": {
+                  "code": 500,
+                  "status": "Error interno del servidor",
+                  "data": null
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "fecha_desde",
+            "in": "query",
+            "required": false,
+            "description": "Inicio del rango, YYYY-MM-DD.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-01-01"
+          },
+          {
+            "name": "fecha_hasta",
+            "in": "query",
+            "required": false,
+            "description": "Fin del rango, YYYY-MM-DD.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-12-31"
+          }
+        ]
+      }
+    }
+  }
+}

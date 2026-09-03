@@ -1,7 +1,6 @@
 // src/controllers/especialidadController.js
 const pool = require('../config/db');
 const { sendResponse } = require('../utils/responseHandler');
-const { registrarAuditoria } = require('../utils/auditoriaHelper');
 
 // GET /especialidades - Listar todas las especialidades
 const getAllEspecialidades = async (req, res) => {
@@ -43,14 +42,6 @@ const createEspecialidad = async (req, res) => {
       [descripcion]
     );
 
-    // Registrar log de auditoría (ALTA)
-    await registrarAuditoria(
-      req.user.id,
-      'ALTA',
-      'especialidad',
-      result.insertId,
-      `Alta de especialidad: ${descripcion}`
-    );
 
     return sendResponse(res, 201, 'Especialidad creada exitosamente', {
       id: result.insertId,
@@ -82,14 +73,6 @@ const updateEspecialidad = async (req, res) => {
       [descripcion, id]
     );
 
-    // Registrar log de auditoría (MODIFICACION)
-    await registrarAuditoria(
-      req.user.id,
-      'MODIFICACION',
-      'especialidad',
-      Number(id),
-      `Modificación de especialidad id=${id} (${descripcion})`
-    );
 
     return sendResponse(res, 200, 'Especialidad actualizada exitosamente', {
       id: Number(id),
@@ -125,14 +108,6 @@ const deleteEspecialidad = async (req, res) => {
 
     await pool.query('DELETE FROM especialidad WHERE id = ?', [id]);
 
-    // Registrar log de auditoría (BAJA)
-    await registrarAuditoria(
-      req.user.id,
-      'BAJA',
-      'especialidad',
-      Number(id),
-      `Baja de especialidad id=${id}`
-    );
 
     return sendResponse(res, 200, 'Especialidad eliminada exitosamente', { id: Number(id) });
   } catch (error) {
