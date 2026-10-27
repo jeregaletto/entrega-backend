@@ -1,6 +1,9 @@
 // src/controllers/especialidadController.js
 const pool = require('../config/db');
 const { sendResponse } = require('../utils/responseHandler');
+const { registrarAuditoria } = require('../utils/auditoriaHelper');
+
+const esIdValido = (id) => Number.isInteger(Number(id)) && Number(id) > 0;
 
 // GET /especialidades - Listar todas las especialidades
 const getAllEspecialidades = async (req, res) => {
@@ -16,6 +19,11 @@ const getAllEspecialidades = async (req, res) => {
 // GET /especialidades/:id - Obtener especialidad por ID
 const getEspecialidadById = async (req, res) => {
   const { id } = req.params;
+
+  if (!esIdValido(id)) {
+    return sendResponse(res, 400, 'El ID de la especialidad debe ser un número entero positivo.', null);
+  }
+
   try {
     const [rows] = await pool.query('SELECT id, descripcion FROM especialidad WHERE id = ?', [id]);
     if (rows.length === 0) {
@@ -31,21 +39,33 @@ const getEspecialidadById = async (req, res) => {
 // POST /especialidades - Crear especialidad
 const createEspecialidad = async (req, res) => {
   const { descripcion } = req.body;
+  const descripcionTrim = typeof descripcion === 'string' ? descripcion.trim() : '';
 
-  if (!descripcion) {
-    return sendResponse(res, 400, 'La descripción de la especialidad es obligatoria', null);
+  if (!descripcionTrim) {
+    return sendResponse(res, 400, 'La descripción de la especialidad es obligatoria.', null);
+  }
+  if (descripcionTrim.length > 30) {
+    return sendResponse(res, 400, 'La descripción de la especialidad no puede superar los 30 caracteres.', null);
   }
 
   try {
     const [result] = await pool.query(
       'INSERT INTO especialidad (descripcion) VALUES (?)',
-      [descripcion]
+      [descripcionTrim]
     );
 
+    // Registrar log de auditoría (ALTA)
+    await registrarAuditoria(
+      req.user.id,
+      'ALTA',
+      'especialidad',
+      result.insertId,
+      `Alta de especialidad: ${descripcionTrim}`
+    );
 
     return sendResponse(res, 201, 'Especialidad creada exitosamente', {
       id: result.insertId,
-      descripcion
+      descripcion: descripcionTrim
     });
   } catch (error) {
     console.error('Error en createEspecialidad:', error);
@@ -56,10 +76,19 @@ const createEspecialidad = async (req, res) => {
 // PUT /especialidades/:id - Actualizar especialidad
 const updateEspecialidad = async (req, res) => {
   const { id } = req.params;
-  const { descripcion } = req.body;
 
-  if (!descripcion) {
-    return sendResponse(res, 400, 'La descripción de la especialidad es obligatoria para actualizar', null);
+  if (!esIdValido(id)) {
+    return sendResponse(res, 400, 'El ID de la especialidad debe ser un número entero positivo.', null);
+  }
+
+  const { descripcion } = req.body;
+  const descripcionTrim = typeof descripcion === 'string' ? descripcion.trim() : '';
+
+  if (!descripcionTrim) {
+    return sendResponse(res, 400, 'La descripción de la especialidad es obligatoria para actualizar.', null);
+  }
+  if (descripcionTrim.length > 30) {
+    return sendResponse(res, 400, 'La descripción de la especialidad no puede superar los 30 caracteres.', null);
   }
 
   try {
@@ -70,13 +99,21 @@ const updateEspecialidad = async (req, res) => {
 
     await pool.query(
       'UPDATE especialidad SET descripcion = ? WHERE id = ?',
-      [descripcion, id]
+      [descripcionTrim, id]
     );
 
+    // Registrar log de auditoría (MODIFICACION)
+    await registrarAuditoria(
+      req.user.id,
+      'MODIFICACION',
+      'especialidad',
+      Number(id),
+      `Modificación de especialidad id=${id} (${descripcionTrim})`
+    );
 
     return sendResponse(res, 200, 'Especialidad actualizada exitosamente', {
       id: Number(id),
-      descripcion
+      descripcion: descripcionTrim
     });
   } catch (error) {
     console.error('Error en updateEspecialidad:', error);
@@ -87,6 +124,10 @@ const updateEspecialidad = async (req, res) => {
 // DELETE /especialidades/:id - Eliminar especialidad
 const deleteEspecialidad = async (req, res) => {
   const { id } = req.params;
+
+  if (!esIdValido(id)) {
+    return sendResponse(res, 400, 'El ID de la especialidad debe ser un número entero positivo.', null);
+  }
 
   try {
     const [existing] = await pool.query('SELECT id FROM especialidad WHERE id = ?', [id]);
@@ -108,6 +149,14 @@ const deleteEspecialidad = async (req, res) => {
 
     await pool.query('DELETE FROM especialidad WHERE id = ?', [id]);
 
+    // Registrar log de auditoría (BAJA)
+    await registrarAuditoria(
+      req.user.id,
+      'BAJA',
+      'especialidad',
+      Number(id),
+      `Baja de especialidad id=${id}`
+    );
 
     return sendResponse(res, 200, 'Especialidad eliminada exitosamente', { id: Number(id) });
   } catch (error) {

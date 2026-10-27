@@ -2,8 +2,31 @@
 const pool = require('../config/db');
 const { sendResponse } = require('../utils/responseHandler');
 
+const esIdValido = (id) => Number.isInteger(Number(id)) && Number(id) > 0;
+
 // Auxiliar para verificar si el usuario es paciente
 const esPaciente = (req) => req.user && req.user.rol === 'paciente';
+
+/**
+ * Normaliza una hora en formato 'HH:mm' o 'HH:mm:ss' a 'HH:mm'.
+ * Devuelve null si no coincide con un formato válido.
+ */
+const normalizarHoraAgenda = (h) => {
+  if (typeof h !== 'string') return null;
+  const match = h.trim().match(/^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/);
+  if (!match) return null;
+  return `${match[1]}:${match[2]}`;
+};
+
+/**
+ * Valida que una fecha tenga formato 'YYYY-MM-DD' y corresponda a una fecha de calendario válida.
+ */
+const esFechaValida = (valor) => {
+  if (typeof valor !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(valor)) return false;
+  const [anio, mes, dia] = valor.split('-').map(Number);
+  const fecha = new Date(Date.UTC(anio, mes - 1, dia));
+  return fecha.getUTCFullYear() === anio && fecha.getUTCMonth() === mes - 1 && fecha.getUTCDate() === dia;
+};
 
 // GET /agenda - Listar registros de agenda con filtros opcionales (medico, sede, fecha)
 const getAllAgendas = async (req, res) => {
@@ -22,6 +45,18 @@ const getAllAgendas = async (req, res) => {
     }
   }
 
+  if (medicoIdFiltro !== undefined && !esIdValido(medicoIdFiltro)) {
+    return sendResponse(res, 400, 'El filtro de médico debe ser un número entero positivo.', null);
+  }
+
+  if (sedeIdFiltro !== undefined && !esIdValido(sedeIdFiltro)) {
+    return sendResponse(res, 400, 'El filtro de sede debe ser un número entero positivo.', null);
+  }
+
+  if (fecha !== undefined && !esFechaValida(fecha)) {
+    return sendResponse(res, 400, 'El parámetro fecha debe tener el formato YYYY-MM-DD y ser una fecha válida.', null);
+  }
+
   try {
     let query = `
       SELECT 
@@ -36,7 +71,9 @@ const getAllAgendas = async (req, res) => {
         e.descripcion AS especialidad_descripcion, 
         a.id_sede, 
         s.nombre AS sede_nombre,
-        s.direccion AS sede_direccion
+        s.direccion AS sede_direccion,
+        CAST((SELECT COUNT(*) FROM turno t WHERE t.id_agenda = a.id AND t.estado = 'confirmado') AS SIGNED) AS turnos_confirmados,
+        CAST((SELECT COUNT(*) FROM turno t WHERE t.id_agenda = a.id) AS SIGNED) AS turnos_total
       FROM agenda a
       INNER JOIN usuario u ON a.id_medico = u.id
       INNER JOIN especialidad e ON a.id_especialidad = e.id
@@ -51,12 +88,12 @@ const getAllAgendas = async (req, res) => {
       params.push(req.user.id);
     } else if (medicoIdFiltro) {
       query += ' AND a.id_medico = ?';
-      params.push(medicoIdFiltro);
+      params.push(Number(medicoIdFiltro));
     }
 
     if (sedeIdFiltro) {
       query += ' AND a.id_sede = ?';
-      params.push(sedeIdFiltro);
+      params.push(Number(sedeIdFiltro));
     }
 
     if (fecha) {
@@ -82,6 +119,10 @@ const getAgendaById = async (req, res) => {
 
   const { id } = req.params;
 
+  if (!esIdValido(id)) {
+    return sendResponse(res, 400, 'El ID de la agenda debe ser un número entero positivo.', null);
+  }
+
   try {
     const query = `
       SELECT 
@@ -96,7 +137,9 @@ const getAgendaById = async (req, res) => {
         e.descripcion AS especialidad_descripcion, 
         a.id_sede, 
         s.nombre AS sede_nombre,
-        s.direccion AS sede_direccion
+        s.direccion AS sede_direccion,
+        CAST((SELECT COUNT(*) FROM turno t WHERE t.id_agenda = a.id AND t.estado = 'confirmado') AS SIGNED) AS turnos_confirmados,
+        CAST((SELECT COUNT(*) FROM turno t WHERE t.id_agenda = a.id) AS SIGNED) AS turnos_total
       FROM agenda a
       INNER JOIN usuario u ON a.id_medico = u.id
       INNER JOIN especialidad e ON a.id_especialidad = e.id
@@ -135,6 +178,34 @@ const createAgenda = async (req, res) => {
     return sendResponse(res, 400, 'Todos los campos (hora_entrada, hora_salida, fecha, id_medico, id_especialidad, id_sede) son obligatorios.', null);
   }
 
+  const horaEntradaNorm = normalizarHoraAgenda(hora_entrada);
+  if (!horaEntradaNorm) {
+    return sendResponse(res, 400, 'El formato de hora_entrada debe ser HH:mm o HH:mm:ss válido.', null);
+  }
+
+  const horaSalidaNorm = normalizarHoraAgenda(hora_salida);
+  if (!horaSalidaNorm) {
+    return sendResponse(res, 400, 'El formato de hora_salida debe ser HH:mm o HH:mm:ss válido.', null);
+  }
+
+  if (horaSalidaNorm <= horaEntradaNorm) {
+    return sendResponse(res, 400, 'La hora de salida debe ser posterior a la hora de entrada.', null);
+  }
+
+  if (!esFechaValida(fecha)) {
+    return sendResponse(res, 400, 'El parámetro fecha debe tener el formato YYYY-MM-DD y ser una fecha válida.', null);
+  }
+
+  if (!esIdValido(id_medico)) {
+    return sendResponse(res, 400, 'El ID de médico debe ser un número entero positivo.', null);
+  }
+  if (!esIdValido(id_especialidad)) {
+    return sendResponse(res, 400, 'El ID de especialidad debe ser un número entero positivo.', null);
+  }
+  if (!esIdValido(id_sede)) {
+    return sendResponse(res, 400, 'El ID de sede debe ser un número entero positivo.', null);
+  }
+
   // Verificar restricción si el usuario es médico
   if (req.user.rol === 'medico' && Number(id_medico) !== Number(req.user.id)) {
     return sendResponse(res, 403, 'Acceso denegado. Un médico solo puede registrar franjas horarias en su propia agenda.', null);
@@ -159,17 +230,37 @@ const createAgenda = async (req, res) => {
       return sendResponse(res, 400, 'La sede especificada no existe.', null);
     }
 
-    // Insertar el registro (se permiten múltiples franjas horarias para el mismo médico en la misma fecha)
+    // Validar que el médico posea la especialidad indicada
+    const [medEspCheck] = await pool.query(
+      'SELECT id FROM medico_especialidad WHERE id_medico = ? AND id_especialidad = ?',
+      [id_medico, id_especialidad]
+    );
+    if (medEspCheck.length === 0) {
+      return sendResponse(res, 400, 'El médico no tiene asignada la especialidad especificada.', null);
+    }
+
+    // Validar solapamiento con cualquier franja del mismo médico en la misma fecha (en cualquier sede)
+    const [solapados] = await pool.query(
+      `SELECT id FROM agenda 
+       WHERE id_medico = ? AND fecha = ? AND (? < hora_salida AND ? > hora_entrada)`,
+      [id_medico, fecha, horaEntradaNorm, horaSalidaNorm]
+    );
+
+    if (solapados.length > 0) {
+      return sendResponse(res, 400, 'El médico ya posee una franja horaria que se solapa con el horario ingresado en esa fecha.', null);
+    }
+
+    // Insertar el registro con horas normalizadas a 'HH:mm'
     const [result] = await pool.query(
       `INSERT INTO agenda (hora_entrada, hora_salida, fecha, id_medico, id_especialidad, id_sede)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [hora_entrada, hora_salida, fecha, id_medico, id_especialidad, id_sede]
+      [horaEntradaNorm, horaSalidaNorm, fecha, id_medico, id_especialidad, id_sede]
     );
 
     return sendResponse(res, 201, 'Franja de agenda creada exitosamente', {
       id: result.insertId,
-      hora_entrada,
-      hora_salida,
+      hora_entrada: horaEntradaNorm,
+      hora_salida: horaSalidaNorm,
       fecha,
       id_medico: Number(id_medico),
       id_especialidad: Number(id_especialidad),
@@ -188,10 +279,43 @@ const updateAgenda = async (req, res) => {
   }
 
   const { id } = req.params;
+
+  if (!esIdValido(id)) {
+    return sendResponse(res, 400, 'El ID de agenda debe ser un número entero positivo.', null);
+  }
+
   const { hora_entrada, hora_salida, fecha, id_medico, id_especialidad, id_sede } = req.body;
 
   if (!hora_entrada || !hora_salida || !fecha || !id_medico || !id_especialidad || !id_sede) {
     return sendResponse(res, 400, 'Todos los campos son obligatorios para actualizar.', null);
+  }
+
+  const horaEntradaNorm = normalizarHoraAgenda(hora_entrada);
+  if (!horaEntradaNorm) {
+    return sendResponse(res, 400, 'El formato de hora_entrada debe ser HH:mm o HH:mm:ss válido.', null);
+  }
+
+  const horaSalidaNorm = normalizarHoraAgenda(hora_salida);
+  if (!horaSalidaNorm) {
+    return sendResponse(res, 400, 'El formato de hora_salida debe ser HH:mm o HH:mm:ss válido.', null);
+  }
+
+  if (horaSalidaNorm <= horaEntradaNorm) {
+    return sendResponse(res, 400, 'La hora de salida debe ser posterior a la hora de entrada.', null);
+  }
+
+  if (!esFechaValida(fecha)) {
+    return sendResponse(res, 400, 'El parámetro fecha debe tener el formato YYYY-MM-DD y ser una fecha válida.', null);
+  }
+
+  if (!esIdValido(id_medico)) {
+    return sendResponse(res, 400, 'El ID de médico debe ser un número entero positivo.', null);
+  }
+  if (!esIdValido(id_especialidad)) {
+    return sendResponse(res, 400, 'El ID de especialidad debe ser un número entero positivo.', null);
+  }
+  if (!esIdValido(id_sede)) {
+    return sendResponse(res, 400, 'El ID de sede debe ser un número entero positivo.', null);
   }
 
   try {
@@ -225,17 +349,82 @@ const updateAgenda = async (req, res) => {
       return sendResponse(res, 400, 'La sede especificada no existe.', null);
     }
 
+    // Validar que el médico posea la especialidad indicada
+    const [medEspCheck] = await pool.query(
+      'SELECT id FROM medico_especialidad WHERE id_medico = ? AND id_especialidad = ?',
+      [id_medico, id_especialidad]
+    );
+    if (medEspCheck.length === 0) {
+      return sendResponse(res, 400, 'El médico no tiene asignada la especialidad especificada.', null);
+    }
+
+    // Validar solapamiento con cualquier franja del mismo médico en la misma fecha (excluyendo el registro actual)
+    const [solapados] = await pool.query(
+      `SELECT id FROM agenda 
+       WHERE id_medico = ? AND fecha = ? AND (? < hora_salida AND ? > hora_entrada) AND id != ?`,
+      [id_medico, fecha, horaEntradaNorm, horaSalidaNorm, id]
+    );
+
+    if (solapados.length > 0) {
+      return sendResponse(res, 400, 'El médico ya posee una franja horaria que se solapa con el horario ingresado en esa fecha.', null);
+    }
+
+    // Validar restricciones si la agenda tiene turnos confirmados asociados
+    const [turnosConfirmados] = await pool.query(
+      'SELECT id, hora FROM turno WHERE id_agenda = ? AND estado = "confirmado"',
+      [id]
+    );
+
+    if (turnosConfirmados.length > 0) {
+      // (a) No se pueden cambiar fecha, médico, especialidad ni sede
+      const fechaOriginalStr = typeof agendaOriginal.fecha === 'string'
+        ? agendaOriginal.fecha
+        : (agendaOriginal.fecha instanceof Date ? agendaOriginal.fecha.toISOString().split('T')[0] : String(agendaOriginal.fecha));
+
+      if (
+        fechaOriginalStr !== fecha ||
+        Number(agendaOriginal.id_medico) !== Number(id_medico) ||
+        Number(agendaOriginal.id_especialidad) !== Number(id_especialidad) ||
+        Number(agendaOriginal.id_sede) !== Number(id_sede)
+      ) {
+        return sendResponse(
+          res,
+          400,
+          'No se pueden modificar la fecha, médico, especialidad ni sede de una agenda con turnos confirmados asociados.',
+          null
+        );
+      }
+
+      // (b) Todos los turnos confirmados deben seguir dentro de [hora_entrada, hora_salida] inclusive
+      let turnosFuera = 0;
+      for (const t of turnosConfirmados) {
+        const horaTurno = t.hora ? t.hora.substring(0, 5) : '';
+        if (horaTurno < horaEntradaNorm || horaTurno > horaSalidaNorm) {
+          turnosFuera++;
+        }
+      }
+
+      if (turnosFuera > 0) {
+        return sendResponse(
+          res,
+          400,
+          `No se puede modificar el horario: ${turnosFuera} turno(s) confirmado(s) quedarían fuera del nuevo rango (${horaEntradaNorm} a ${horaSalidaNorm}).`,
+          null
+        );
+      }
+    }
+
     await pool.query(
       `UPDATE agenda 
        SET hora_entrada = ?, hora_salida = ?, fecha = ?, id_medico = ?, id_especialidad = ?, id_sede = ?
        WHERE id = ?`,
-      [hora_entrada, hora_salida, fecha, id_medico, id_especialidad, id_sede, id]
+      [horaEntradaNorm, horaSalidaNorm, fecha, id_medico, id_especialidad, id_sede, id]
     );
 
     return sendResponse(res, 200, 'Registro de agenda actualizado exitosamente', {
       id: Number(id),
-      hora_entrada,
-      hora_salida,
+      hora_entrada: horaEntradaNorm,
+      hora_salida: horaSalidaNorm,
       fecha,
       id_medico: Number(id_medico),
       id_especialidad: Number(id_especialidad),
@@ -254,6 +443,10 @@ const deleteAgenda = async (req, res) => {
   }
 
   const { id } = req.params;
+
+  if (!esIdValido(id)) {
+    return sendResponse(res, 400, 'El ID de agenda debe ser un número entero positivo.', null);
+  }
 
   try {
     const [existing] = await pool.query('SELECT * FROM agenda WHERE id = ?', [id]);

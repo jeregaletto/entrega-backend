@@ -1,5 +1,6 @@
 // src/app.js
 const express = require('express');
+const cors = require('cors');
 require('dotenv').config();
 const pool = require('./config/db');
 const { sendResponse } = require('./utils/responseHandler');
@@ -17,6 +18,7 @@ const sedeRoutes = require('./routes/sedeRoutes');
 const especialidadRoutes = require('./routes/especialidadRoutes');
 const coberturaRoutes = require('./routes/coberturaRoutes');
 const agendaRoutes = require('./routes/agendaRoutes');
+const medicoRoutes = require('./routes/medicoRoutes');
 
 // Importar rutas de Semana 3
 const turnoRoutes = require('./routes/turnoRoutes');
@@ -26,9 +28,13 @@ const notificacionRoutes = require('./routes/notificacionRoutes');
 // Importar rutas de Semana 4
 const auditoriaRoutes = require('./routes/auditoriaRoutes');
 const reporteRoutes = require('./routes/reporteRoutes');
+const usuarioRoutes = require('./routes/usuarioRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// CORS para permitir peticiones desde el frontend
+app.use(cors({ origin: 'http://localhost:4200' }));
 
 // Middleware para parsear JSON
 app.use(express.json());
@@ -65,11 +71,13 @@ app.use('/sedes', sedeRoutes);
 app.use('/especialidades', especialidadRoutes);
 app.use('/coberturas', coberturaRoutes);
 app.use('/agenda', agendaRoutes);
+app.use('/medicos', medicoRoutes);
 app.use('/turnos', turnoRoutes);
 app.use('/historial-clinico', historialClinicoRoutes);
 app.use('/notificaciones', notificacionRoutes);
 app.use('/auditoria', auditoriaRoutes);
 app.use('/reportes', reporteRoutes);
+app.use('/usuarios', usuarioRoutes);
 
 // Manejador de rutas no encontradas (404)
 app.use((req, res) => {

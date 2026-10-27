@@ -4,7 +4,7 @@ const { sendResponse } = require('../utils/responseHandler');
 const { crearNotificacion } = require('../utils/notificacionHelper');
 
 /**
- * Normaliza una cadena de tiempo al formato estándar 'HH:mm:ss'.
+ * Normaliza una cadena de tiempo al formato estándar 'HH:mm'.
  */
 const normalizarHora = (h) => {
   if (!h) return '';
@@ -186,7 +186,12 @@ const cancelarTurno = async (req, res) => {
       if (Number(turno.id_paciente) !== Number(usuario.id)) {
         return sendResponse(res, 403, 'Acceso denegado. Solo puede cancelar sus propios turnos.', null);
       }
-    } else if (usuario.rol === 'operador' || usuario.rol === 'medico') {
+    } else if (usuario.rol === 'medico') {
+      // El médico solo puede cancelar turnos asignados a su propia agenda en cualquier sede
+      if (Number(turno.id_medico) !== Number(usuario.id)) {
+        return sendResponse(res, 403, 'Acceso denegado. Solo puede cancelar sus propios turnos asignados.', null);
+      }
+    } else if (usuario.rol === 'operador') {
       if (Number(turno.id_sede) !== Number(usuario.id_sede)) {
         return sendResponse(res, 403, 'Acceso denegado. Solo puede cancelar turnos pertenecientes a su sede asignada.', null);
       }
@@ -301,7 +306,7 @@ const esFechaValida = (valor) => {
 
 /**
  * Consulta base de turnos con los datos de agenda, paciente, médico,
- * especialidad, sede y cobertura ya resueltos.
+ * especialidad, sede, cobertura, fecha de nacimiento del paciente y existencia de historial clínico.
  */
 const SELECT_TURNOS = `
   SELECT t.id,
@@ -312,6 +317,7 @@ const SELECT_TURNOS = `
          t.id_agenda,
          t.id_paciente,
          CONCAT(u_pac.apellido, ', ', u_pac.nombre) AS paciente,
+         DATE_FORMAT(u_pac.fecha_nacimiento, '%Y-%m-%d') AS paciente_fecha_nacimiento,
          t.id_cobertura,
          c.nombre AS cobertura,
          a.id_medico,
@@ -319,7 +325,8 @@ const SELECT_TURNOS = `
          a.id_especialidad,
          e.descripcion AS especialidad,
          a.id_sede,
-         s.nombre AS sede
+         s.nombre AS sede,
+         CASE WHEN EXISTS (SELECT 1 FROM historial_clinico hc WHERE hc.id_turno = t.id) THEN 1 ELSE 0 END AS tiene_historial
   FROM turno t
   INNER JOIN agenda a ON t.id_agenda = a.id
   INNER JOIN usuario u_pac ON t.id_paciente = u_pac.id
@@ -355,17 +362,22 @@ const getMisTurnos = async (req, res) => {
       params
     );
 
-    return sendResponse(res, 200, 'Turnos del paciente obtenidos con éxito', turnos);
+    const formattedTurnos = turnos.map((t) => ({
+      ...t,
+      tiene_historial: Boolean(t.tiene_historial)
+    }));
+
+    return sendResponse(res, 200, 'Turnos del paciente obtenidos con éxito', formattedTurnos);
   } catch (error) {
     console.error('Error en getMisTurnos:', error);
     return sendResponse(res, 500, 'Error interno al obtener los turnos del paciente', null);
   }
 };
 
-// GET /turnos/programados?fecha=YYYY-MM-DD&id_medico= - Turnos de un médico para una fecha
+// GET /turnos/programados?fecha=YYYY-MM-DD&id_medico=&id_sede= - Turnos de un médico para una fecha
 const getTurnosProgramados = async (req, res) => {
   const usuario = req.user;
-  const { fecha, id_medico } = req.query;
+  const { fecha, id_medico, id_sede } = req.query;
 
   if (!fecha) {
     return sendResponse(res, 400, 'El parámetro fecha es obligatorio.', null);
@@ -379,6 +391,10 @@ const getTurnosProgramados = async (req, res) => {
     return sendResponse(res, 400, 'El filtro id_medico debe ser un número entero positivo.', null);
   }
 
+  if (id_sede !== undefined && !(Number.isInteger(Number(id_sede)) && Number(id_sede) > 0)) {
+    return sendResponse(res, 400, 'El filtro id_sede debe ser un número entero positivo.', null);
+  }
+
   try {
     const filtros = ['t.fecha = ?'];
     const params = [fecha];
@@ -390,19 +406,32 @@ const getTurnosProgramados = async (req, res) => {
       }
       filtros.push('a.id_medico = ?');
       params.push(usuario.id);
+
+      if (id_sede !== undefined) {
+        filtros.push('a.id_sede = ?');
+        params.push(Number(id_sede));
+      }
     } else if (usuario.rol === 'operador') {
       // El operador solo accede a los turnos de su propia sede
+      if (id_sede !== undefined && Number(id_sede) !== Number(usuario.id_sede)) {
+        return sendResponse(res, 403, 'Acceso denegado. Solo puede consultar los turnos de su sede asignada.', null);
+      }
       filtros.push('a.id_sede = ?');
       params.push(usuario.id_sede);
+
       if (id_medico !== undefined) {
         filtros.push('a.id_medico = ?');
         params.push(Number(id_medico));
       }
     } else {
-      // El administrador puede consultar cualquier médico
+      // El administrador puede consultar cualquier médico y cualquier sede
       if (id_medico !== undefined) {
         filtros.push('a.id_medico = ?');
         params.push(Number(id_medico));
+      }
+      if (id_sede !== undefined) {
+        filtros.push('a.id_sede = ?');
+        params.push(Number(id_sede));
       }
     }
 
@@ -411,7 +440,12 @@ const getTurnosProgramados = async (req, res) => {
       params
     );
 
-    return sendResponse(res, 200, 'Turnos programados obtenidos con éxito', turnos);
+    const formattedTurnos = turnos.map((t) => ({
+      ...t,
+      tiene_historial: Boolean(t.tiene_historial)
+    }));
+
+    return sendResponse(res, 200, 'Turnos programados obtenidos con éxito', formattedTurnos);
   } catch (error) {
     console.error('Error en getTurnosProgramados:', error);
     return sendResponse(res, 500, 'Error interno al obtener los turnos programados', null);
@@ -457,7 +491,12 @@ const getTurnosPorSede = async (req, res) => {
       params
     );
 
-    return sendResponse(res, 200, 'Turnos de la sede obtenidos con éxito', turnos);
+    const formattedTurnos = turnos.map((t) => ({
+      ...t,
+      tiene_historial: Boolean(t.tiene_historial)
+    }));
+
+    return sendResponse(res, 200, 'Turnos de la sede obtenidos con éxito', formattedTurnos);
   } catch (error) {
     console.error('Error en getTurnosPorSede:', error);
     return sendResponse(res, 500, 'Error interno al obtener los turnos de la sede', null);

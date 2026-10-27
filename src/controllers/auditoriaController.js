@@ -12,10 +12,22 @@ const esFechaValida = (valor) => {
   return fecha.getUTCFullYear() === anio && fecha.getUTCMonth() === mes - 1 && fecha.getUTCDate() === dia;
 };
 
-// GET /auditoria - Consulta de logs de auditoría con filtros opcionales (Solo Admin)
+// GET /auditoria - Consulta de logs de auditoría con filtros opcionales y paginación (Solo Admin)
 const getAuditoria = async (req, res) => {
-  const { usuario, id_usuario, entidad, fecha_desde, fecha_hasta } = req.query;
+  const { usuario, id_usuario, entidad, fecha_desde, fecha_hasta, page = 1, limit = 10 } = req.query;
   const usuarioFiltro = usuario || id_usuario;
+
+  // Validación de filtros page y limit
+  const pageNum = Number(page);
+  const limitNum = Number(limit);
+
+  if (!Number.isInteger(pageNum) || pageNum <= 0) {
+    return sendResponse(res, 400, 'El parámetro page debe ser un número entero positivo.', null);
+  }
+
+  if (!Number.isInteger(limitNum) || limitNum <= 0 || limitNum > 100) {
+    return sendResponse(res, 400, 'El parámetro limit debe ser un número entero positivo entre 1 y 100.', null);
+  }
 
   // Validación de filtro usuario
   if (usuarioFiltro !== undefined && !(Number.isInteger(Number(usuarioFiltro)) && Number(usuarioFiltro) > 0)) {
@@ -59,6 +71,20 @@ const getAuditoria = async (req, res) => {
       params.push(`${fecha_hasta} 23:59:59`);
     }
 
+    const whereClause = filtros.join(' AND ');
+
+    // Conteo total para paginación con los mismos filtros
+    const countQuery = `
+      SELECT COUNT(*) AS total
+      FROM log_auditoria l
+      INNER JOIN usuario u ON l.id_usuario = u.id
+      WHERE ${whereClause}
+    `;
+    const [countRows] = await pool.query(countQuery, params);
+    const total = Number(countRows[0].total) || 0;
+
+    const offset = (pageNum - 1) * limitNum;
+
     const query = `
       SELECT 
         l.id,
@@ -75,13 +101,19 @@ const getAuditoria = async (req, res) => {
         DATE_FORMAT(l.fecha, '%Y-%m-%d %H:%i:%s') AS fecha
       FROM log_auditoria l
       INNER JOIN usuario u ON l.id_usuario = u.id
-      WHERE ${filtros.join(' AND ')}
+      WHERE ${whereClause}
       ORDER BY l.fecha DESC, l.id DESC
+      LIMIT ? OFFSET ?
     `;
 
-    const [logs] = await pool.query(query, params);
+    const [logs] = await pool.query(query, [...params, limitNum, offset]);
 
-    return sendResponse(res, 200, 'Registros de auditoría obtenidos con éxito', logs);
+    return sendResponse(res, 200, 'Registros de auditoría obtenidos con éxito', {
+      items: logs,
+      total,
+      page: pageNum,
+      limit: limitNum
+    });
   } catch (error) {
     console.error('Error en getAuditoria:', error);
     return sendResponse(res, 500, 'Error interno al consultar los logs de auditoría', null);

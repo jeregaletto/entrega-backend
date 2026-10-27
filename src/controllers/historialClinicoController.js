@@ -12,6 +12,26 @@ const createHistorialClinico = async (req, res) => {
     return sendResponse(res, 400, 'Los campos id_turno, diagnostico y tratamiento son obligatorios.', null);
   }
 
+  const diagnosticoTrim = typeof diagnostico === 'string' ? diagnostico.trim() : '';
+  const tratamientoTrim = typeof tratamiento === 'string' ? tratamiento.trim() : '';
+  const observacionesTrim = typeof observaciones === 'string' ? observaciones.trim() : (observaciones ? String(observaciones).trim() : '');
+
+  if (!diagnosticoTrim || !tratamientoTrim) {
+    return sendResponse(res, 400, 'Los campos id_turno, diagnostico y tratamiento son obligatorios.', null);
+  }
+
+  if (diagnosticoTrim.length > 255) {
+    return sendResponse(res, 400, 'El diagnóstico no puede superar los 255 caracteres.', null);
+  }
+
+  if (tratamientoTrim.length > 255) {
+    return sendResponse(res, 400, 'El tratamiento no puede superar los 255 caracteres.', null);
+  }
+
+  if (observacionesTrim.length > 255) {
+    return sendResponse(res, 400, 'Las observaciones no pueden superar los 255 caracteres.', null);
+  }
+
   try {
     // Buscar el turno e información de agenda
     const [turnos] = await pool.query(
@@ -48,30 +68,29 @@ const createHistorialClinico = async (req, res) => {
       return sendResponse(res, 400, 'Ya existe un registro de historial clínico para este turno.', null);
     }
 
-// Insertar el nuevo registro de historial clínico
-  const [result] = await pool.query(
-    `INSERT INTO historial_clinico (id_turno, id_medico, id_paciente, diagnostico, tratamiento, observaciones)
-    VALUES (?, ?, ?, ?, ?, ?)`,
-    [
-      id_turno,
-      usuario.id,           // id_medico: el médico autenticado que atiende
-      turno.id_paciente,    // id_paciente: sacado del turno, no del body
-      diagnostico.trim(),
-      tratamiento.trim(),
-      observaciones && typeof observaciones === 'string' ? observaciones.trim() : null
-    ]
-);
+    // Insertar el nuevo registro de historial clínico
+    const [result] = await pool.query(
+      `INSERT INTO historial_clinico (id_turno, id_medico, id_paciente, diagnostico, tratamiento, observaciones)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        id_turno,
+        usuario.id,           // id_medico: el médico autenticado que atiende
+        turno.id_paciente,    // id_paciente: sacado del turno, no del body
+        diagnosticoTrim,
+        tratamientoTrim,
+        observacionesTrim || null
+      ]
+    );
 
-  return sendResponse(res, 201, 'Historial clínico registrado exitosamente', {
-    id: result.insertId,
-    id_turno: Number(id_turno),
-    id_medico: usuario.id,
-    id_paciente: turno.id_paciente,
-    diagnostico: diagnostico.trim(),
-    tratamiento: tratamiento.trim(),
-    observaciones: observaciones && typeof observaciones === 'string' ? observaciones.trim() : null
-  });
-
+    return sendResponse(res, 201, 'Historial clínico registrado exitosamente', {
+      id: result.insertId,
+      id_turno: Number(id_turno),
+      id_medico: usuario.id,
+      id_paciente: turno.id_paciente,
+      diagnostico: diagnosticoTrim,
+      tratamiento: tratamientoTrim,
+      observaciones: observacionesTrim || null
+    });
   } catch (error) {
     console.error('Error en createHistorialClinico:', error);
     return sendResponse(res, 500, 'Error interno al registrar el historial clínico', null);

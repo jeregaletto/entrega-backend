@@ -1,6 +1,9 @@
 // src/controllers/coberturaController.js
 const pool = require('../config/db');
 const { sendResponse } = require('../utils/responseHandler');
+const { registrarAuditoria } = require('../utils/auditoriaHelper');
+
+const esIdValido = (id) => Number.isInteger(Number(id)) && Number(id) > 0;
 
 // GET /coberturas - Listar todas las coberturas (Público / Accesible sin rol admin)
 const getAllCoberturas = async (req, res) => {
@@ -16,6 +19,11 @@ const getAllCoberturas = async (req, res) => {
 // GET /coberturas/:id - Obtener cobertura por ID
 const getCoberturaById = async (req, res) => {
   const { id } = req.params;
+
+  if (!esIdValido(id)) {
+    return sendResponse(res, 400, 'El ID de la cobertura debe ser un número entero positivo.', null);
+  }
+
   try {
     const [rows] = await pool.query('SELECT id, nombre FROM cobertura WHERE id = ?', [id]);
     if (rows.length === 0) {
@@ -31,21 +39,33 @@ const getCoberturaById = async (req, res) => {
 // POST /coberturas - Crear cobertura (Solo Admin)
 const createCobertura = async (req, res) => {
   const { nombre } = req.body;
+  const nombreTrim = typeof nombre === 'string' ? nombre.trim() : '';
 
-  if (!nombre) {
-    return sendResponse(res, 400, 'El nombre de la cobertura es obligatorio', null);
+  if (!nombreTrim) {
+    return sendResponse(res, 400, 'El nombre de la cobertura es obligatorio.', null);
+  }
+  if (nombreTrim.length > 30) {
+    return sendResponse(res, 400, 'El nombre de la cobertura no puede superar los 30 caracteres.', null);
   }
 
   try {
     const [result] = await pool.query(
       'INSERT INTO cobertura (nombre) VALUES (?)',
-      [nombre]
+      [nombreTrim]
     );
 
+    // Registrar log de auditoría (ALTA)
+    await registrarAuditoria(
+      req.user.id,
+      'ALTA',
+      'cobertura',
+      result.insertId,
+      `Alta de cobertura: ${nombreTrim}`
+    );
 
     return sendResponse(res, 201, 'Cobertura creada exitosamente', {
       id: result.insertId,
-      nombre
+      nombre: nombreTrim
     });
   } catch (error) {
     console.error('Error en createCobertura:', error);
@@ -56,10 +76,19 @@ const createCobertura = async (req, res) => {
 // PUT /coberturas/:id - Actualizar cobertura (Solo Admin)
 const updateCobertura = async (req, res) => {
   const { id } = req.params;
-  const { nombre } = req.body;
 
-  if (!nombre) {
-    return sendResponse(res, 400, 'El nombre de la cobertura es obligatorio para actualizar', null);
+  if (!esIdValido(id)) {
+    return sendResponse(res, 400, 'El ID de la cobertura debe ser un número entero positivo.', null);
+  }
+
+  const { nombre } = req.body;
+  const nombreTrim = typeof nombre === 'string' ? nombre.trim() : '';
+
+  if (!nombreTrim) {
+    return sendResponse(res, 400, 'El nombre de la cobertura es obligatorio para actualizar.', null);
+  }
+  if (nombreTrim.length > 30) {
+    return sendResponse(res, 400, 'El nombre de la cobertura no puede superar los 30 caracteres.', null);
   }
 
   try {
@@ -68,12 +97,20 @@ const updateCobertura = async (req, res) => {
       return sendResponse(res, 404, 'Cobertura no encontrada', null);
     }
 
-    await pool.query('UPDATE cobertura SET nombre = ? WHERE id = ?', [nombre, id]);
+    await pool.query('UPDATE cobertura SET nombre = ? WHERE id = ?', [nombreTrim, id]);
 
+    // Registrar log de auditoría (MODIFICACION)
+    await registrarAuditoria(
+      req.user.id,
+      'MODIFICACION',
+      'cobertura',
+      Number(id),
+      `Modificación de cobertura id=${id} (${nombreTrim})`
+    );
 
     return sendResponse(res, 200, 'Cobertura actualizada exitosamente', {
       id: Number(id),
-      nombre
+      nombre: nombreTrim
     });
   } catch (error) {
     console.error('Error en updateCobertura:', error);
@@ -84,6 +121,10 @@ const updateCobertura = async (req, res) => {
 // DELETE /coberturas/:id - Eliminar cobertura (Solo Admin)
 const deleteCobertura = async (req, res) => {
   const { id } = req.params;
+
+  if (!esIdValido(id)) {
+    return sendResponse(res, 400, 'El ID de la cobertura debe ser un número entero positivo.', null);
+  }
 
   try {
     const [existing] = await pool.query('SELECT id FROM cobertura WHERE id = ?', [id]);
@@ -105,6 +146,14 @@ const deleteCobertura = async (req, res) => {
 
     await pool.query('DELETE FROM cobertura WHERE id = ?', [id]);
 
+    // Registrar log de auditoría (BAJA)
+    await registrarAuditoria(
+      req.user.id,
+      'BAJA',
+      'cobertura',
+      Number(id),
+      `Baja de cobertura id=${id}`
+    );
 
     return sendResponse(res, 200, 'Cobertura eliminada exitosamente', { id: Number(id) });
   } catch (error) {
