@@ -29,6 +29,7 @@ const notificacionRoutes = require('./routes/notificacionRoutes');
 const auditoriaRoutes = require('./routes/auditoriaRoutes');
 const reporteRoutes = require('./routes/reporteRoutes');
 const usuarioRoutes = require('./routes/usuarioRoutes');
+const disponibilidadRoutes = require('./routes/disponibilidadRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -78,6 +79,7 @@ app.use('/notificaciones', notificacionRoutes);
 app.use('/auditoria', auditoriaRoutes);
 app.use('/reportes', reporteRoutes);
 app.use('/usuarios', usuarioRoutes);
+app.use('/disponibilidad', disponibilidadRoutes);
 
 // Manejador de rutas no encontradas (404)
 app.use((req, res) => {

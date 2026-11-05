@@ -116,8 +116,8 @@ const getHistorialByPaciente = async (req, res) => {
           h.id_turno, 
           h.diagnostico, 
           h.tratamiento, 
-          h.observaciones, 
-          h.fecha,
+          h.observaciones,
+          h.fecha_registro AS fecha,
           t.fecha AS turno_fecha,
           t.hora AS turno_hora,
           CONCAT(u_med.nombre, ' ', u_med.apellido) AS medico_nombre,
@@ -130,7 +130,7 @@ const getHistorialByPaciente = async (req, res) => {
         INNER JOIN especialidad e ON a.id_especialidad = e.id
         INNER JOIN sede s ON a.id_sede = s.id
         WHERE t.id_paciente = ?
-        ORDER BY h.fecha DESC, h.id DESC`,
+        ORDER BY h.fecha_registro DESC, h.id DESC`,
         [idPacienteBuscado]
       );
 
@@ -149,8 +149,8 @@ const getHistorialByPaciente = async (req, res) => {
           h.id_turno, 
           h.diagnostico, 
           h.tratamiento, 
-          h.observaciones, 
-          h.fecha,
+          h.observaciones,
+          h.fecha_registro AS fecha,
           t.fecha AS turno_fecha,
           t.hora AS turno_hora,
           t.id_paciente,
@@ -166,7 +166,7 @@ const getHistorialByPaciente = async (req, res) => {
         INNER JOIN especialidad e ON a.id_especialidad = e.id
         INNER JOIN sede s ON a.id_sede = s.id
         WHERE t.id_paciente = ? AND a.id_medico = ?
-        ORDER BY h.fecha DESC, h.id DESC`,
+        ORDER BY h.fecha_registro DESC, h.id DESC`,
         [idPacienteBuscado, usuario.id]
       );
 
